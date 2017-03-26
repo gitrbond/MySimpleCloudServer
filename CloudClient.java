@@ -1,15 +1,20 @@
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.PrintWriter;
-import java.math.BigInteger;
 import java.net.Socket;
 import java.util.Scanner;
 
 public class CloudClient {
-    public static Socket socket = null;
-    public static FileInputStream in = null;
-    public static PrintWriter out = null;
+    static Socket socket = null;
+    static DataInputStream in = null;
+    static DataOutputStream out = null;
+    
+    static FileInputStream fileReader;
+    static FileOutputStream fileWriter;
+    
+    static File file;
     
     public static void main(String[] args) throws Exception {
         String IP = "localhost";
@@ -20,12 +25,12 @@ public class CloudClient {
         String input = scan.next().trim();
         if (!input.equals("1")) {
             IP = input;
-            PORT = Integer.parseInt(scan.next());
+            PORT = scan.nextInt();
         }
         System.out.println("Connecting to " + IP + ":" + PORT + " ...");
         socket = new Socket(IP, PORT);
-        in = (FileInputStream) socket.getInputStream();
-        out = new PrintWriter(socket.getOutputStream());
+        in = new DataInputStream(socket.getInputStream());
+        out = new DataOutputStream(socket.getOutputStream());
         System.out.println("Connected.");
         System.out.println("Commands: \"DOWNLOAD filename\", \"UPLOAD filename\", \"QUIT\"");
         String command = scan.next();
@@ -48,21 +53,16 @@ public class CloudClient {
     
     public static void download(String fileName) throws Exception {
         System.out.println("Download request: " + fileName);
-        out.println("d");
-        out.println(fileName);
+        out.writeChar('d');
+        out.writeInt(fileName.length());
+        for (int i = 0; i < fileName.length(); i++) {
+            out.writeChar(fileName.charAt(i));
+        }
         out.flush();
         System.out.println("Looking for the file...");
         
         // Receive and parse the file length.
-        String lengthValue = "";
-        for (int l = 0; l < 4; l++) {
-            String thisByte = Integer.toString(in.read(), 2);
-            while (thisByte.length() < 8) {
-                thisByte = "0" + thisByte;
-            }
-            lengthValue += "" + thisByte;
-        }
-        int length = Integer.parseInt(lengthValue, 2);
+        int length = in.readInt();
         
         // Download the file if it exists.
         if (length == 0) {
@@ -70,21 +70,21 @@ public class CloudClient {
         }
         else {
             System.out.println("Downloading file...");            
-            File file = new File(fileName);
-            FileOutputStream outStream = new FileOutputStream(file);
+            file = new File(fileName);
+            fileWriter = new FileOutputStream(file);
             
             byte[] data = new byte[length];
             for (int i = 0; i < length; i++)
                 data[i] = (byte) in.read();
-            outStream.write(data);
-            outStream.close();
+            fileWriter.write(data);
+            fileWriter.close();
             System.out.println("File downloaded.");
         }
     }
     
     public static void upload(String fileName) throws Exception {
         System.out.println("Upload request: " + fileName);
-        File file = new File(fileName);
+        file = new File(fileName);
         if (!file.exists()) {
             System.out.println("File not found on the working directory.");
         }
@@ -96,37 +96,31 @@ public class CloudClient {
                 System.out.println("Upload failed. The max allowed size is 5 MB");
             }
             else {
-                out.println("u");
-                out.println(fileName);
+                out.writeChar('u');
+                out.writeInt(fileName.length());
+                for (int i = 0; i < fileName.length(); i++) {
+                    out.writeChar(fileName.charAt(i));
+                }
                 out.flush();
-                FileOutputStream outf = (FileOutputStream) socket.getOutputStream();
+                
                 System.out.println("Uploading file ...");
-                FileInputStream inputStream = new FileInputStream(file);
+                fileReader = new FileInputStream(file);
                 
                 // Upload the file length.
-                byte[] lengthArray = BigInteger.valueOf(length).toByteArray();
-                while (lengthArray.length < 4) {
-                    byte[] modifiedLengthArray = new byte[lengthArray.length + 1];
-                    for (int i = 0; i < lengthArray.length; i++)
-                        modifiedLengthArray[i+1] = lengthArray[i];
-                    lengthArray = modifiedLengthArray;
-                }
-                for (int w = 0; w < 4; w++) {
-                    outf.write(lengthArray[w]);
-                }
+                out.writeInt(length);
                 
                 // Upload the file bytes.
                 byte[] data = new byte[length];
-                inputStream.read(data);
-                inputStream.close();
-                outf.write(data);
+                fileReader.read(data);
+                fileReader.close();
+                out.write(data);
                 System.out.println("File uploaded.");
             }
         }
     }
     
     public static void logout() throws Exception {
-        out.println("q");
+        out.writeChar('q');
         out.flush();
     }
 }
