@@ -1,20 +1,24 @@
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
 
 public class CloudServer implements Runnable {
-    public Socket connectionSocket;
-    public Scanner in;
-    public FileOutputStream out;
+    Socket connectionSocket;
+    DataInputStream in;
+    DataOutputStream out;
+    
+    File file;
+    FileInputStream fileReader;
+    FileOutputStream fileWriter;
     
     public CloudServer(Socket connectionSocket) throws Exception {
         this.connectionSocket = connectionSocket;
-        this.in = new Scanner(connectionSocket.getInputStream());
-        this.out = (FileOutputStream) connectionSocket.getOutputStream();
+        this.in = new DataInputStream(connectionSocket.getInputStream());
+        this.out = new DataOutputStream(connectionSocket.getOutputStream());
     }
     
     public void run() {
@@ -22,11 +26,15 @@ public class CloudServer implements Runnable {
         try {
             while (true) {
                 System.out.println("Listening ...");
-                String command = in.next();
-                if (command.equals("d")) {
-                    String fileName = in.next();
+                char command = in.readChar();
+                if (command == 'd') {
+                    int nameLength = in.readInt();
+                    String fileName = "";
+                    for (int i = 0; i < nameLength; i++) {
+                        fileName = fileName + in.readChar();
+                    }
                     System.out.println("Download request: " + fileName);
-                    File file = new File(fileName);
+                    file = new File(fileName);
                     if (!file.exists()) {
                         System.out.println("File not found.");
                         out.write(new byte[] {0, 0, 0, 0});
@@ -36,23 +44,14 @@ public class CloudServer implements Runnable {
                         long start = System.currentTimeMillis();
                         
                         // Send the file length.
-                        FileInputStream inputStream = new FileInputStream(file);
+                        fileReader = new FileInputStream(file);
                         int length = (int) file.length();
-                        byte[] lengthArray = BigInteger.valueOf(length).toByteArray();
-                        while (lengthArray.length < 4) {
-                            byte[] modifiedLengthArray = new byte[lengthArray.length + 1];
-                            for (int i = 0; i < lengthArray.length; i++)
-                                modifiedLengthArray[i+1] = lengthArray[i];
-                            lengthArray = modifiedLengthArray;
-                        }
-                        for (int w = 0; w < 4; w++) {
-                            out.write(lengthArray[w]);
-                        }
+                        out.writeInt(length);
                         
                         // Send the file bytes.
                         byte[] data = new byte[length];
-                        inputStream.read(data);
-                        inputStream.close();
+                        fileReader.read(data);
+                        fileReader.close();
                         out.write(data);
                         
                         // Measure time.
@@ -63,32 +62,28 @@ public class CloudServer implements Runnable {
                         System.out.printf("Transfer time: %.2f seconds%nTransfer speed: %.2f MB/s%n", time, speed);
                     }
                 }
-                else if (command.equals("u")) {
-                    String fileName = in.next();
+                else if (command == 'u') {
+                    int nameLength = in.readInt();
+                    String fileName = "";
+                    for (int i = 0; i < nameLength; i++) {
+                        fileName = fileName + in.readChar();
+                    }
                     System.out.println("Upload request: " + fileName);
-                    File file = new File(fileName);
-                    FileOutputStream outStream = new FileOutputStream(file);
-                    FileInputStream inf = (FileInputStream) connectionSocket.getInputStream();
+                    file = new File(fileName);
+                    fileWriter = new FileOutputStream(file);
+
                     System.out.println("Receiving file ...");
                     long start = System.currentTimeMillis();
                     
-                    // Receive and parse the file length.
-                    String lengthValue = "";
-                    for (int l = 0; l < 4; l++) {
-                        String thisByte = Integer.toString(inf.read(), 2);
-                        while (thisByte.length() < 8){
-                            thisByte = "0" + thisByte;
-                        }
-                        lengthValue += "" + thisByte;
-                    }
-                    int length = Integer.parseInt(lengthValue, 2);
+                    // Receive the file length
+                    int length = in.readInt();
                     
                     // Receive the file bytes.
                     byte[] data = new byte[length];
                     for (int i = 0; i < length; i++)
-                        data[i] = (byte) inf.read();
-                    outStream.write(data);
-                    outStream.close();
+                        data[i] = (byte) in.read();
+                    fileWriter.write(data);
+                    fileWriter.close();
                     
                     // Measure time.
                     long end = System.currentTimeMillis();
@@ -97,7 +92,7 @@ public class CloudServer implements Runnable {
                     System.out.println("File received.");
                     System.out.printf("Transfer time: %.2f seconds%nTransfer speed: %.2f MB/s%n", time, speed);
                 }
-                else if (command.equals("q")) {
+                else if (command == 'q') {
                     break;
                 }
             }
