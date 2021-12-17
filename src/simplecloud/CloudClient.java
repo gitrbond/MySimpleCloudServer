@@ -86,10 +86,10 @@ public class CloudClient {
             try {
                 for (int i = 0; i < fileNumber; i++) {
                     //inputLine.append(tmp);
-                    System.out.println("-");
+                    //System.out.println("-");
                     in.read(tmp);
-                    System.out.println("+");
-                    System.out.println(Arrays.toString(tmp));
+                    //System.out.println("+");
+                    System.out.println(new String(tmp));
                 }
             } catch (IOException ioe) {
                 System.out.println("IOException: " + ioe);
