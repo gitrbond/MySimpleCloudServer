@@ -7,6 +7,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.Scanner;
 
 
@@ -81,11 +82,14 @@ public class CloudClient {
             System.out.println("Server directory empty, no files stored");
         else {
             System.out.println("List of files on the server:");
-            String tmp;
+            byte[] tmp = new byte[100];
             try {
-                for (int i = 0; i < fileNumber && (tmp = in.readLine()) != null; i++) {
+                for (int i = 0; i < fileNumber; i++) {
                     //inputLine.append(tmp);
-                    System.out.println(tmp);
+                    System.out.println("-");
+                    in.read(tmp);
+                    System.out.println("+");
+                    System.out.println(Arrays.toString(tmp));
                 }
             } catch (IOException ioe) {
                 System.out.println("IOException: " + ioe);
