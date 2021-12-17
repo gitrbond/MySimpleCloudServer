@@ -84,12 +84,13 @@ public class CloudClient {
             System.out.println("List of files on the server:");
             byte[] tmp = new byte[100];
             try {
-                for (int i = 0; i < fileNumber; i++) {
+                for (int i = 0; i < 1; i++) {
                     //inputLine.append(tmp);
                     //System.out.println("-");
-                    in.read(tmp);
+                    //in.read(tmp);
                     //System.out.println("+");
-                    System.out.println(new String(tmp)+"\n");
+                    if (in.read(tmp) > 0)
+                        System.out.println(new String(tmp)+"\n");
                     //System.out.println(" ");
                 }
             } catch (IOException ioe) {

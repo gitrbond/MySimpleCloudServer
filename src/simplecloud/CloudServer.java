@@ -103,9 +103,9 @@ public class CloudServer implements Runnable {
                     for (int i = 0; i < listOfFiles.length; i++) {
                         //System.out.println(".");
                         if (listOfFiles[i].isFile()) {
-                            out.writeBytes("file " + listOfFiles[i].getName());
+                            out.writeBytes("file " + listOfFiles[i].getName()+"\n");
                         } else if (listOfFiles[i].isDirectory()) {
-                            out.writeBytes("dir  " + listOfFiles[i].getName());
+                            out.writeBytes("dir  " + listOfFiles[i].getName()+"\n");
                         }
                     }
                 }
