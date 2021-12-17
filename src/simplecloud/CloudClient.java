@@ -66,10 +66,12 @@ public class CloudClient {
     }
 
     private void listFiles() {
-        int fileNumber = -1;
-        try {
-            fileNumber = in.readInt();
+        try {out.writeInt(SimpleCloud.MSG_LIST);}
+        catch (IOException ioe) {
+            System.out.println("IOException: " + ioe);
         }
+        int fileNumber = -1;
+        try {fileNumber = in.readInt();}
         catch (IOException ioe) {
             System.out.println("IOException: " + ioe);
         }

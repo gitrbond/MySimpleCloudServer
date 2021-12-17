@@ -98,6 +98,8 @@ public class CloudServer implements Runnable {
                     File folder = new File(pathToStore);
                     File[] listOfFiles = folder.listFiles();
 
+                    out.writeInt(0);
+
                     for (int i = 0; i < listOfFiles.length; i++) {
                         if (listOfFiles[i].isFile()) {
                             System.out.println("File " + listOfFiles[i].getName());
