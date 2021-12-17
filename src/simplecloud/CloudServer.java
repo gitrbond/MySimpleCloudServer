@@ -16,7 +16,7 @@ public class CloudServer implements Runnable {
     private final DataOutputStream out;
     private final DataInputStream in;
 
-    private final String pathToStore = "C:\\Users\\cubic\\IdeaProjects\\MySimpleCloudServer\\storage";
+    private final String pathToStore = "C:\\Users\\user\\MySimpleCloudServer\\storage";
     
     public CloudServer(Socket connectionSocket) throws IOException {
         this.connectionSocket = connectionSocket;
