@@ -39,7 +39,7 @@ public class CloudClient {
         try {
             System.out.println("Connected.");
             System.out.println("Commands: \"DOWNLOAD <filename>\", \"UPLOAD "
-                                   + "<filename>\", \"QUIT\"");
+                                   + "<filename>\", \"LIST\", \"QUIT\"");
             String command = scan.next();
             while (!command.equalsIgnoreCase("QUIT")) {
                 if (command.equalsIgnoreCase("DOWNLOAD")) {
@@ -49,6 +49,9 @@ public class CloudClient {
                 else if (command.equalsIgnoreCase("UPLOAD")) {
                     String fileName = scan.next();
                     upload(fileName);
+                }
+                else if (command.equalsIgnoreCase("LIST")) {
+                    listFiles();
                 }
                 else {
                     System.out.println("Please enter a valid command.");
@@ -61,7 +64,33 @@ public class CloudClient {
             System.out.println("Disconnected from the server.");
         }
     }
-    
+
+    private void listFiles() {
+        int fileNumber = -1;
+        try {
+            fileNumber = in.readInt();
+        }
+        catch (IOException ioe) {
+            System.out.println("IOException: " + ioe);
+        }
+        if (fileNumber < 0)
+            System.out.println("Some error occured, \"fileNumber < 0\"");
+        else if (fileNumber == 0)
+            System.out.println("Server directory empty, no files stored");
+        else {
+            System.out.println("List of files on the server:");
+            String tmp;
+            try {
+                for (int i = 0; i < fileNumber && (tmp = in.readLine()) != null; i++) {
+                    //inputLine.append(tmp);
+                    System.out.println(tmp);
+                }
+            } catch (IOException ioe) {
+                System.out.println("IOException: " + ioe);
+            }
+        }
+    }
+
     private void download(String fileName) throws IOException {
         System.out.println("Requesting download for: " + fileName);
         out.writeInt(SimpleCloud.MSG_DOWNLOAD);

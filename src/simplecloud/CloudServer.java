@@ -15,6 +15,8 @@ public class CloudServer implements Runnable {
     private final Socket connectionSocket;
     private final DataOutputStream out;
     private final DataInputStream in;
+
+    private String pathToStore = "C:\\Users\\cubic\\IdeaProjects\\MySimpleCloudServer\\storage\\";
     
     public CloudServer(Socket connectionSocket) throws IOException {
         this.connectionSocket = connectionSocket;
@@ -33,7 +35,7 @@ public class CloudServer implements Runnable {
                 if (command == SimpleCloud.MSG_DOWNLOAD) {
                     String fileName = in.readUTF();
                     System.out.println("Download request: " + fileName);
-                    File file = new File(fileName);
+                    File file = new File(pathToStore + fileName);
                     if (!file.exists()) {
                         System.out.println("Requested file not found.");
                         out.writeInt(SimpleCloud.MSG_INVALID);
@@ -66,7 +68,7 @@ public class CloudServer implements Runnable {
                 else if (command == SimpleCloud.MSG_UPLOAD) {
                     String fileName = in.readUTF();
                     System.out.println("Upload request: " + fileName);
-                    File file = new File(fileName);
+                    File file = new File(pathToStore + fileName);
                     if (file.exists()) {
                         System.out.println("Upload rejected due to the name conflict.");
                         out.writeInt(SimpleCloud.MSG_INVALID);
@@ -89,6 +91,19 @@ public class CloudServer implements Runnable {
                         }
                         fileWriter.close();
                         System.out.println("File received.");
+                    }
+                }
+
+                else if (command == SimpleCloud.MSG_LIST) {
+                    File folder = new File(pathToStore);
+                    File[] listOfFiles = folder.listFiles();
+
+                    for (int i = 0; i < listOfFiles.length; i++) {
+                        if (listOfFiles[i].isFile()) {
+                            System.out.println("File " + listOfFiles[i].getName());
+                        } else if (listOfFiles[i].isDirectory()) {
+                            System.out.println("Directory " + listOfFiles[i].getName());
+                        }
                     }
                 }
                 
