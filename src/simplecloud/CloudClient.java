@@ -90,6 +90,7 @@ public class CloudClient {
                     in.read(tmp);
                     //System.out.println("+");
                     System.out.println(new String(tmp));
+                    System.out.println("");
                 }
             } catch (IOException ioe) {
                 System.out.println("IOException: " + ioe);
