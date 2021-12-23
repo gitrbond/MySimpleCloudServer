@@ -162,6 +162,7 @@ public class CloudClient {
                     byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
                     fileReader.read(buffer);
                     out.write(buffer);
+                    out.flush();
                     if (i % 1024 == 0 && (System.currentTimeMillis()
                             - lastUpdate > 3000 || i == 0)) {
                         lastUpdate = System.currentTimeMillis();
@@ -173,7 +174,7 @@ public class CloudClient {
                 for (int i = 0; i < remaining; i++) {
                     out.write(fileReader.read());
                 }
-                out.flush();
+                //out.flush();
                 fileReader.close();
                 System.out.println("File uploaded.");
             } else {
