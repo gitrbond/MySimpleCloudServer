@@ -173,8 +173,9 @@ public class CloudClient {
                 }
                 for (int i = 0; i < remaining; i++) {
                     out.write(fileReader.read());
+                    out.flush();
                 }
-                out.flush();
+                //out.flush();
                 fileReader.close();
                 System.out.println("File uploaded.");
             } else {
