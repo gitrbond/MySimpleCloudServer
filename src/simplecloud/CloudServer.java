@@ -86,7 +86,7 @@ public class CloudServer implements Runnable {
                             in.read(buffer);
                             fileWriter.write(buffer);
                         }
-                        for (int i = 0; i < remaining; i++) {
+                        for (int i = 0; i < 1 /*remaining*/; i++) {
                             fileWriter.write(in.read());
                         }
                         fileWriter.close();
