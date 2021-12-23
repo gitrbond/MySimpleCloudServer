@@ -82,12 +82,12 @@ public class CloudClient {
             System.out.println("Server directory empty, no files stored");
         else {
             System.out.println("List of files on the server:");
-            byte[] tmp = new byte[100];
+            byte[] tmp = new byte[300];
             try {
                 for (int i = 0; i < 1; i++) {
                     //in.read(tmp);
                     if (in.read(tmp) > 0)
-                        System.out.println(new String(tmp)+"\n");
+                        System.out.println(new String(tmp));
                 }
             } catch (IOException ioe) {
                 System.out.println("IOException: " + ioe);
