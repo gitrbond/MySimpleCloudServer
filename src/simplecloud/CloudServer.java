@@ -57,12 +57,12 @@ public class CloudServer implements Runnable {
                             out.write(buffer);
                             out.flush();
                         }
-                        fileReader.close();
                         byte[] rembuffer = new byte[remaining];
                         fileReader.read(rembuffer);
                         out.write(rembuffer);
                         out.flush();
                         System.out.println("File sent.");
+                        fileReader.close();
                     }
                 }
                 
