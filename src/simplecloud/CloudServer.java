@@ -55,12 +55,13 @@ public class CloudServer implements Runnable {
                             byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
                             fileReader.read(buffer);
                             out.write(buffer);
+                            out.flush();
                         }
-                        for (int i = 0; i < remaining; i++) {
-                            out.write(fileReader.read());
-                        }
-                        out.flush();
                         fileReader.close();
+                        byte[] rembuffer = new byte[remaining];
+                        fileReader.read(rembuffer);
+                        out.write(rembuffer);
+                        out.flush();
                         System.out.println("File sent.");
                     }
                 }
@@ -89,10 +90,6 @@ public class CloudServer implements Runnable {
                         byte[] rembuffer = new byte[remaining];
                         in.read(rembuffer);
                         fileWriter.write(rembuffer);
-                        /*for (int i = 0; i < remaining; i++) {
-                            in.read(rembuffer);
-                            fileWriter.write(rembuffer);
-                        }*/
                         fileWriter.close();
                         System.out.println("File received.");
                     }

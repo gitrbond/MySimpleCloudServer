@@ -127,8 +127,9 @@ public class CloudClient {
                 byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
                 in.read(buffer);
                 randommask.read(rbuffer);
-                for (int j = 0; j < buffer.length; j++)
-                    buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
+                System.out.println("A");
+                //for (int j = 0; j < buffer.length; j++)
+                  //  buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                 fileWriter.write(buffer);
 
                 if (i % 1024 == 0 && (System.currentTimeMillis()
@@ -186,8 +187,9 @@ public class CloudClient {
                     byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
                     fileReader.read(buffer);
                     randommask.read(rbuffer);
-                    for (int j = 0; j < buffer.length; j++)
-                        buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
+                    System.out.println("A");
+                    //for (int j = 0; j < buffer.length; j++)
+                      //  buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                     out.write(buffer);
                     out.flush();
                     if (i % 1024 == 0 && (System.currentTimeMillis()
@@ -202,15 +204,10 @@ public class CloudClient {
                 byte[] rrembuffer = new byte[remaining];
                 fileReader.read(rembuffer);
                 randommask.read(rrembuffer);
-                for (int i = 0; i < rembuffer.length; i++)
-                    rembuffer[i] = (byte) (rembuffer[i] ^ rrembuffer[i]);
+                //for (int i = 0; i < rembuffer.length; i++)
+                  //  rembuffer[i] = (byte) (rembuffer[i] ^ rrembuffer[i]);
                 out.write(rembuffer);
                 out.flush();
-                /*for (int i = 0; i < remaining; i++) {
-                    out.write(fileReader.read());
-                    out.flush();
-                }*/
-                //out.flush();
                 fileReader.close();
                 System.out.println("File uploaded.");
             } else {
