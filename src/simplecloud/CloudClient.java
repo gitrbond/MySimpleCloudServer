@@ -1,12 +1,9 @@
 package simplecloud;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Scanner;
 
@@ -16,6 +13,8 @@ public class CloudClient {
     private final Socket socket;
     private final DataInputStream in;
     private final DataOutputStream out;
+
+    private static byte[] randombytes;
     
     public static void startClient(String ip, int port) {
         CloudClient client = null;
@@ -25,12 +24,22 @@ public class CloudClient {
             System.out.println("Connection failed.");
             return;
         }
+
+        randombytes = new byte [SimpleCloud.BUFFER_LEN];
+        Scanner scan = new Scanner(System.in);
+        System.out.println("Enter the encrypting password:");
+        String password = scan.next();
+        SecureRandom random = new SecureRandom();
+        random.setSeed(password.getBytes(StandardCharsets.UTF_8));
+        random.nextBytes(randombytes);
+
         client.takeCommands();
     }
     
     private CloudClient(String ip, int port) throws IOException {
         System.out.println("Connecting to " + ip + ":" + port + " ...");
         socket = new Socket(ip, port);
+        //randommask = new ByteArrayInputStream(randombytes);
         in = new DataInputStream(socket.getInputStream());
         out = new DataOutputStream(socket.getOutputStream());
     }
@@ -87,7 +96,7 @@ public class CloudClient {
                 for (int i = 0; i < 1; i++) {
                     //in.read(tmp);
                     if (in.read(tmp) > 0)
-                        System.out.println(new String(tmp));
+                        System.out.print(new String(tmp));
                 }
             } catch (IOException ioe) {
                 System.out.println("IOException: " + ioe);
@@ -97,6 +106,7 @@ public class CloudClient {
 
     private void download(String fileName) throws IOException {
         System.out.println("Requesting download for: " + fileName);
+        ByteArrayInputStream randommask = new ByteArrayInputStream(randombytes);
         out.writeInt(SimpleCloud.MSG_DOWNLOAD);
         out.flush();
         out.writeUTF(fileName);
@@ -114,8 +124,13 @@ public class CloudClient {
             long lastUpdate = System.currentTimeMillis();
             for (int i = 0; i < iterNum; i++) {
                 byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
+                byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
                 in.read(buffer);
+                randommask.read(rbuffer);
+                for (int j = 0; j < buffer.length; j++)
+                    buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                 fileWriter.write(buffer);
+
                 if (i % 1024 == 0 && (System.currentTimeMillis()
                         - lastUpdate> 3000 || i == 0)) {
                     lastUpdate = System.currentTimeMillis();
@@ -124,9 +139,16 @@ public class CloudClient {
                         (length / (1024.0 * 1024.0)));
                 }
             }
-            for (int i = 0; i < remaining; i++) {
+            byte[] rembuffer = new byte[remaining];
+            byte[] rrembuffer = new byte[remaining];
+            in.read(rembuffer);
+            randommask.read(rrembuffer);
+            for (int i = 0; i < rembuffer.length; i++)
+                rembuffer[i] = (byte) (rembuffer[i] ^ rrembuffer[i]);
+            fileWriter.write(rembuffer);
+            /*for (int i = 0; i < remaining; i++) {
                 fileWriter.write(in.read());
-            }
+            }*/
             fileWriter.close();
             System.out.println("File downloaded.");
         } else {
@@ -136,6 +158,7 @@ public class CloudClient {
     
     private void upload(String fileName) throws IOException {
         System.out.println("Uploading the file to the server: " + fileName);
+        ByteArrayInputStream randommask = new ByteArrayInputStream(randombytes);
         File file = new File(fileName);
         if (!file.exists()) {
             System.out.println("File not found on the working directory.");
@@ -160,7 +183,11 @@ public class CloudClient {
                 long lastUpdate = System.currentTimeMillis();
                 for (int i = 0; i < iterNum; i++) {
                     byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
+                    byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
                     fileReader.read(buffer);
+                    randommask.read(rbuffer);
+                    for (int j = 0; j < buffer.length; j++)
+                        buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                     out.write(buffer);
                     out.flush();
                     if (i % 1024 == 0 && (System.currentTimeMillis()
@@ -172,7 +199,11 @@ public class CloudClient {
                     }
                 }
                 byte[] rembuffer = new byte[remaining];
+                byte[] rrembuffer = new byte[remaining];
                 fileReader.read(rembuffer);
+                randommask.read(rrembuffer);
+                for (int i = 0; i < rembuffer.length; i++)
+                    rembuffer[i] = (byte) (rembuffer[i] ^ rrembuffer[i]);
                 out.write(rembuffer);
                 out.flush();
                 /*for (int i = 0; i < remaining; i++) {
