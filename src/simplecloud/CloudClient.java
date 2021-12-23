@@ -85,13 +85,9 @@ public class CloudClient {
             byte[] tmp = new byte[100];
             try {
                 for (int i = 0; i < 1; i++) {
-                    //inputLine.append(tmp);
-                    //System.out.println("-");
                     //in.read(tmp);
-                    //System.out.println("+");
                     if (in.read(tmp) > 0)
                         System.out.println(new String(tmp)+"\n");
-                    //System.out.println(" ");
                 }
             } catch (IOException ioe) {
                 System.out.println("IOException: " + ioe);
