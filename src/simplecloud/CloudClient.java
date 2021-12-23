@@ -171,10 +171,14 @@ public class CloudClient {
                             (length / (1024.0 * 1024.0)));
                     }
                 }
-                for (int i = 0; i < remaining; i++) {
+                byte[] rembuffer = new byte[remaining];
+                fileReader.read(rembuffer);
+                out.write(rembuffer);
+                out.flush();
+                /*for (int i = 0; i < remaining; i++) {
                     out.write(fileReader.read());
                     out.flush();
-                }
+                }*/
                 //out.flush();
                 fileReader.close();
                 System.out.println("File uploaded.");

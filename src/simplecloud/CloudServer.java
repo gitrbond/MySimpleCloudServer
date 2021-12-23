@@ -86,9 +86,13 @@ public class CloudServer implements Runnable {
                             in.read(buffer);
                             fileWriter.write(buffer);
                         }
-                        for (int i = 0; i < remaining; i++) {
-                            fileWriter.write(in.read());
-                        }
+                        byte[] rembuffer = new byte[remaining];
+                        in.read(rembuffer);
+                        fileWriter.write(rembuffer);
+                        /*for (int i = 0; i < remaining; i++) {
+                            in.read(rembuffer);
+                            fileWriter.write(rembuffer);
+                        }*/
                         fileWriter.close();
                         System.out.println("File received.");
                     }
