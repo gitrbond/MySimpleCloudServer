@@ -55,7 +55,7 @@ public class CloudServer implements Runnable {
                             byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
                             fileReader.read(buffer);
                             out.write(buffer);
-                            out.flush();
+                            //out.flush();
                         }
                         byte[] rembuffer = new byte[remaining];
                         fileReader.read(rembuffer);

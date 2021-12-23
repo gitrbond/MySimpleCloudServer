@@ -191,7 +191,7 @@ public class CloudClient {
                     //for (int j = 0; j < buffer.length; j++)
                       //  buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                     out.write(buffer);
-                    out.flush();
+                    //out.flush();
                     if (i % 1024 == 0 && (System.currentTimeMillis()
                             - lastUpdate > 3000 || i == 0)) {
                         lastUpdate = System.currentTimeMillis();
