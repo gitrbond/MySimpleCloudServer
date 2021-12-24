@@ -128,8 +128,8 @@ public class CloudClient {
                 in.read(buffer);
                 randommask.read(rbuffer);
                 System.out.println("A");
-                //for (int j = 0; j < buffer.length; j++)
-                  //  buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
+                for (int j = 0; j < buffer.length; j++)
+                    buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                 fileWriter.write(buffer);
 
                 if (i % 1024 == 0 && (System.currentTimeMillis()
@@ -145,12 +145,13 @@ public class CloudClient {
             in.read(rembuffer);
             randommask.read(rrembuffer);
             for (int i = 0; i < rembuffer.length; i++)
-                rembuffer[i] = (byte) (rembuffer[i] ^ rrembuffer[i]);
+                rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
             fileWriter.write(rembuffer);
             /*for (int i = 0; i < remaining; i++) {
                 fileWriter.write(in.read());
             }*/
             fileWriter.close();
+            randommask.close();
             System.out.println("File downloaded.");
         } else {
             System.out.println("Unexpected response came from the server: " + response);
@@ -188,8 +189,8 @@ public class CloudClient {
                     fileReader.read(buffer);
                     randommask.read(rbuffer);
                     System.out.println("A");
-                    //for (int j = 0; j < buffer.length; j++)
-                      //  buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
+                    for (int j = 0; j < buffer.length; j++)
+                        buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                     out.write(buffer);
                     //out.flush();
                     if (i % 1024 == 0 && (System.currentTimeMillis()
@@ -204,11 +205,12 @@ public class CloudClient {
                 byte[] rrembuffer = new byte[remaining];
                 fileReader.read(rembuffer);
                 randommask.read(rrembuffer);
-                //for (int i = 0; i < rembuffer.length; i++)
-                  //  rembuffer[i] = (byte) (rembuffer[i] ^ rrembuffer[i]);
+                for (int i = 0; i < rembuffer.length; i++)
+                    rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
                 out.write(rembuffer);
                 out.flush();
                 fileReader.close();
+                randommask.close();
                 System.out.println("File uploaded.");
             } else {
                 System.out.println("Unexpected response came from the server: " + response);
