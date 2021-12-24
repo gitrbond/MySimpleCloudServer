@@ -15,7 +15,9 @@ public class CloudClient {
     private final DataOutputStream out;
 
     private static byte[] randombytes;
-    
+    private boolean decrypt = false;
+    private boolean encrypt = false;
+
     public static void startClient(String ip, int port) {
         CloudClient client = null;
         try {
@@ -128,8 +130,9 @@ public class CloudClient {
                 in.read(buffer);
                 randommask.read(rbuffer);
                 System.out.println("A");
-                for (int j = 0; j < buffer.length; j++)
-                    buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
+                if (decrypt)
+                    for (int j = 0; j < buffer.length; j++)
+                        buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                 fileWriter.write(buffer);
 
                 if (i % 1024 == 0 && (System.currentTimeMillis()
@@ -144,8 +147,9 @@ public class CloudClient {
             byte[] rrembuffer = new byte[remaining];
             in.read(rembuffer);
             randommask.read(rrembuffer);
-            for (int i = 0; i < rembuffer.length; i++)
-                rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
+            if (decrypt)
+                for (int i = 0; i < rembuffer.length; i++)
+                    rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
             fileWriter.write(rembuffer);
             /*for (int i = 0; i < remaining; i++) {
                 fileWriter.write(in.read());
@@ -189,24 +193,26 @@ public class CloudClient {
                     fileReader.read(buffer);
                     randommask.read(rbuffer);
                     System.out.println("A");
-                    for (int j = 0; j < buffer.length; j++)
-                        buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
+                    if (encrypt)
+                        for (int j = 0; j < buffer.length; j++)
+                            buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                     out.write(buffer);
                     //out.flush();
-                    if (i % 1024 == 0 && (System.currentTimeMillis()
+                    /*if (i % 1024 == 0 && (System.currentTimeMillis()
                             - lastUpdate > 3000 || i == 0)) {
                         lastUpdate = System.currentTimeMillis();
                         System.out.printf("%.3f MB / %.3f MB%n",
                             ((i * SimpleCloud.BUFFER_LEN) / (1024.0 * 1024.0)),
                             (length / (1024.0 * 1024.0)));
-                    }
+                    }*/
                 }
                 byte[] rembuffer = new byte[remaining];
                 byte[] rrembuffer = new byte[remaining];
                 fileReader.read(rembuffer);
                 randommask.read(rrembuffer);
-                for (int i = 0; i < rembuffer.length; i++)
-                    rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
+                if (encrypt)
+                    for (int i = 0; i < rembuffer.length; i++)
+                        rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
                 out.write(rembuffer);
                 out.flush();
                 fileReader.close();
