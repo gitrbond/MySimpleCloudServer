@@ -55,7 +55,6 @@ public class CloudServer implements Runnable {
                             byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
                             fileReader.read(buffer);
                             out.write(buffer);
-                            //out.flush();
                         }
                         byte[] rembuffer = new byte[remaining];
                         fileReader.read(rembuffer);
@@ -88,23 +87,15 @@ public class CloudServer implements Runnable {
                             byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
                             try {
                                 bytesred = in.read(buffer);
-                                System.out.println("Upload iteration " + iterNum + ", " + bytesred + " bytes red");
+                                //System.out.println("Upload iteration " + i + ", " + bytesred + " bytes red");
                             }
-                            catch (IOException e) {
-                                System.out.println("Upload iteration " + iterNum + ", IOException, " + bytesred + " bytes red");
+                            catch (IOException ioe) {
+                                //System.out.println("Upload iteration " + i + ", IOException, " + bytesred + " bytes red");
+                                System.out.println("IOException: " + ioe);
                             }
                             fileWriter.write(buffer, 0, bytesred);
                             bytesDownloaded += bytesred;
                         }
-                        /*byte[] rembuffer = new byte[remaining];
-                        try {
-                            bytesred = in.read(rembuffer);
-                            System.out.println("Upload remaining, " + bytesred + " bytes red");
-                        }
-                        catch (IOException e) {
-                            System.out.println("Upload remaining, IOException, " + bytesred + " bytes red");
-                        }
-                        fileWriter.write(rembuffer);*/
                         fileWriter.close();
                         System.out.println("File received.");
                     }
@@ -113,11 +104,12 @@ public class CloudServer implements Runnable {
                 else if (command == SimpleCloud.MSG_LIST) {
                     File folder = new File(pathToStore);
                     File[] listOfFiles = folder.listFiles();
+                    int filesNumber = -1;
+                    if (listOfFiles != null)
+                        filesNumber = listOfFiles.length;
+                    out.writeInt(filesNumber);
 
-                    out.writeInt(listOfFiles.length);
-
-                    for (int i = 0; i < listOfFiles.length; i++) {
-                        //System.out.println(".");
+                    for (int i = 0; i < filesNumber; i++) {
                         if (listOfFiles[i].isFile()) {
                             out.writeBytes("file " + listOfFiles[i].getName()+"\n");
                         } else if (listOfFiles[i].isDirectory()) {

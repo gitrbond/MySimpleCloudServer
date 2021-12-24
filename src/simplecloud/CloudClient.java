@@ -15,8 +15,8 @@ public class CloudClient {
     private final DataOutputStream out;
 
     private static byte[] randombytes;
-    private boolean decrypt = false;
-    private boolean encrypt = false;
+    private boolean decrypt = true;
+    private boolean encrypt = true;
 
     public static void startClient(String ip, int port) {
         CloudClient client = null;
@@ -41,7 +41,6 @@ public class CloudClient {
     private CloudClient(String ip, int port) throws IOException {
         System.out.println("Connecting to " + ip + ":" + port + " ...");
         socket = new Socket(ip, port);
-        //randommask = new ByteArrayInputStream(randombytes);
         in = new DataInputStream(socket.getInputStream());
         out = new DataOutputStream(socket.getOutputStream());
     }
@@ -97,8 +96,9 @@ public class CloudClient {
             try {
                 for (int i = 0; i < 1; i++) {
                     //in.read(tmp);
-                    if (in.read(tmp) > 0)
-                        System.out.print(new String(tmp));
+                    int bytesred = in.read(tmp);
+                    if (bytesred > 0)
+                        System.out.print(new String(tmp, 0, bytesred));
                 }
             } catch (IOException ioe) {
                 System.out.println("IOException: " + ioe);
@@ -131,10 +131,10 @@ public class CloudClient {
                 byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
                 try {
                     bytesred = in.read(buffer);
-                    System.out.println("Download iteration " + i + ", " + bytesred + " bytes red");
+                    //System.out.println("Download iteration " + i + ", " + bytesred + " bytes red");
                 }
                 catch (IOException e) {
-                    System.out.println("Download iteration " + i + ", IOException, " + bytesred + " bytes red");
+                    //System.out.println("Download iteration " + i + ", IOException, " + bytesred + " bytes red");
                 }
                 randommask.read(rbuffer, 0, bytesred);
                 if (decrypt)
@@ -142,28 +142,14 @@ public class CloudClient {
                         buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                 fileWriter.write(buffer, 0, bytesred);
                 bytesDownloaded += bytesred;
-                /*if (i % 1024 == 0 && (System.currentTimeMillis()
-                        - lastUpdate> 3000 || i == 0)) {
+                if (i % 1024 == 0 && (System.currentTimeMillis()
+                        - lastUpdate> 1000 || i == 0)) {
                     lastUpdate = System.currentTimeMillis();
                     System.out.printf("%.3f MB / %.3f MB%n",
-                        ((i * SimpleCloud.BUFFER_LEN) / (1024.0 * 1024.0)),
+                        (bytesDownloaded / (1024.0 * 1024.0)),
                         (length / (1024.0 * 1024.0)));
-                }*/
+                }
             }
-            /*byte[] rembuffer = new byte[remaining];
-            byte[] rrembuffer = new byte[remaining];
-            try {
-                bytesred = in.read(rembuffer);
-                System.out.println("Download remaining, " + bytesred + " bytes red");
-            }
-            catch (IOException e) {
-                System.out.println("Download remaining, IOException, " + bytesred + " bytes red");
-            }
-            randommask.read(rrembuffer);
-            if (decrypt)
-                for (int i = 0; i < rembuffer.length; i++)
-                    rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
-            fileWriter.write(rembuffer);*/
             fileWriter.close();
             randommask.close();
             System.out.println("File downloaded.");
@@ -202,19 +188,17 @@ public class CloudClient {
                     byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
                     fileReader.read(buffer);
                     randommask.read(rbuffer);
-                    System.out.println("A");
                     if (encrypt)
                         for (int j = 0; j < buffer.length; j++)
                             buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                     out.write(buffer);
-                    //out.flush();
-                    /*if (i % 1024 == 0 && (System.currentTimeMillis()
-                            - lastUpdate > 3000 || i == 0)) {
+                    if (i % 1024 == 0 && (System.currentTimeMillis()
+                            - lastUpdate > 1000 || i == 0)) {
                         lastUpdate = System.currentTimeMillis();
                         System.out.printf("%.3f MB / %.3f MB%n",
                             ((i * SimpleCloud.BUFFER_LEN) / (1024.0 * 1024.0)),
                             (length / (1024.0 * 1024.0)));
-                    }*/
+                    }
                 }
                 byte[] rembuffer = new byte[remaining];
                 byte[] rrembuffer = new byte[remaining];
