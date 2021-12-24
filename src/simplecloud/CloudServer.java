@@ -83,7 +83,8 @@ public class CloudServer implements Runnable {
                         int iterNum = (int) (length / SimpleCloud.BUFFER_LEN);
                         int remaining = (int) (length - iterNum * SimpleCloud.BUFFER_LEN);
                         int bytesred = -1488;
-                        for (int i = 0; i < iterNum; i++) {
+                        int bytesDownloaded = 0;
+                        for (int i = 0; bytesDownloaded < length && i < 9000; i++) {
                             byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
                             try {
                                 bytesred = in.read(buffer);
@@ -92,9 +93,10 @@ public class CloudServer implements Runnable {
                             catch (IOException e) {
                                 System.out.println("Upload iteration " + iterNum + ", IOException, " + bytesred + " bytes red");
                             }
-                            fileWriter.write(buffer);
+                            fileWriter.write(buffer, 0, bytesred);
+                            bytesDownloaded += bytesred;
                         }
-                        byte[] rembuffer = new byte[remaining];
+                        /*byte[] rembuffer = new byte[remaining];
                         try {
                             bytesred = in.read(rembuffer);
                             System.out.println("Upload remaining, " + bytesred + " bytes red");
@@ -102,7 +104,7 @@ public class CloudServer implements Runnable {
                         catch (IOException e) {
                             System.out.println("Upload remaining, IOException, " + bytesred + " bytes red");
                         }
-                        fileWriter.write(rembuffer);
+                        fileWriter.write(rembuffer);*/
                         fileWriter.close();
                         System.out.println("File received.");
                     }

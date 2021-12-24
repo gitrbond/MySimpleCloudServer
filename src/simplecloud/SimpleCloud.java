@@ -12,7 +12,7 @@ public class SimpleCloud {
     public static final int MSG_QUIT = 5;
     public static final int MSG_LIST = 6;
 
-    public static final int BUFFER_LEN = 1024;
+    public static final int BUFFER_LEN = 10000;
     
     public static void main(String[] args) {
         Scanner scan = new Scanner(System.in);

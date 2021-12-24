@@ -124,36 +124,46 @@ public class CloudClient {
             int iterNum = (int) (length / SimpleCloud.BUFFER_LEN);
             int remaining = (int) (length - iterNum * SimpleCloud.BUFFER_LEN);
             long lastUpdate = System.currentTimeMillis();
-            for (int i = 0; i < iterNum; i++) {
+            int bytesred = -1488;
+            int bytesDownloaded = 0;
+            for (int i = 0; bytesDownloaded < length && i < 9000; i++) {
                 byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
                 byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
-                in.read(buffer);
-                randommask.read(rbuffer);
-                System.out.println("A");
+                try {
+                    bytesred = in.read(buffer);
+                    System.out.println("Download iteration " + i + ", " + bytesred + " bytes red");
+                }
+                catch (IOException e) {
+                    System.out.println("Download iteration " + i + ", IOException, " + bytesred + " bytes red");
+                }
+                randommask.read(rbuffer, 0, bytesred);
                 if (decrypt)
-                    for (int j = 0; j < buffer.length; j++)
+                    for (int j = 0; j < bytesred; j++)
                         buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
-                fileWriter.write(buffer);
-
-                if (i % 1024 == 0 && (System.currentTimeMillis()
+                fileWriter.write(buffer, 0, bytesred);
+                bytesDownloaded += bytesred;
+                /*if (i % 1024 == 0 && (System.currentTimeMillis()
                         - lastUpdate> 3000 || i == 0)) {
                     lastUpdate = System.currentTimeMillis();
                     System.out.printf("%.3f MB / %.3f MB%n",
                         ((i * SimpleCloud.BUFFER_LEN) / (1024.0 * 1024.0)),
                         (length / (1024.0 * 1024.0)));
-                }
+                }*/
             }
-            byte[] rembuffer = new byte[remaining];
+            /*byte[] rembuffer = new byte[remaining];
             byte[] rrembuffer = new byte[remaining];
-            in.read(rembuffer);
+            try {
+                bytesred = in.read(rembuffer);
+                System.out.println("Download remaining, " + bytesred + " bytes red");
+            }
+            catch (IOException e) {
+                System.out.println("Download remaining, IOException, " + bytesred + " bytes red");
+            }
             randommask.read(rrembuffer);
             if (decrypt)
                 for (int i = 0; i < rembuffer.length; i++)
                     rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
-            fileWriter.write(rembuffer);
-            /*for (int i = 0; i < remaining; i++) {
-                fileWriter.write(in.read());
-            }*/
+            fileWriter.write(rembuffer);*/
             fileWriter.close();
             randommask.close();
             System.out.println("File downloaded.");
