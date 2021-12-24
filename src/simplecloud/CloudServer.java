@@ -29,7 +29,7 @@ public class CloudServer implements Runnable {
         System.out.println("Client connected: <" + connectionSocket.getInetAddress() + ">");
         try {
             while (true) {
-                System.out.println("Listening ...");
+                //System.out.println("Listening ...");
                 int command = in.readInt();
                 
                 if (command == SimpleCloud.MSG_DOWNLOAD) {
@@ -88,7 +88,14 @@ public class CloudServer implements Runnable {
                             fileWriter.write(buffer);
                         }
                         byte[] rembuffer = new byte[remaining];
-                        in.read(rembuffer);
+                        int bytesred;
+                        try {
+                            bytesred = in.read(rembuffer);
+                            System.out.println("Upload iteration " + iterNum + ", " + bytesred + " bytes red");
+                        }
+                        catch (IOException e) {
+                            System.out.println("Upload iteration " + iterNum + ", IOException");
+                        }
                         fileWriter.write(rembuffer);
                         fileWriter.close();
                         System.out.println("File received.");
