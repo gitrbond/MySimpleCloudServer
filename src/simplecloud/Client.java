@@ -10,14 +10,11 @@ import java.util.Scanner;
 
 
 public class Client {
-    
+
     private final Socket socket;
     private final DataInputStream in;
     private final DataOutputStream out;
 
-    private static byte[] randombytes;
-    private boolean decrypt = false;
-    private boolean encrypt = false;
     private boolean authorized = false;
     private String username;
 
@@ -56,29 +53,22 @@ public class Client {
             return;
         }
 
-        client.authorize();
-
         client.takeCommands();
     }
 
-    private void authorize() {
-        Scanner scan = new Scanner(System.in);
-        System.out.println("Please enter username:");
+    private void authorize(String requestedUsername) {
         try {
-            while (!authorized) {
-                String requestedUsername = scan.next();
-                out.writeInt(Server.MSG_AUTHORIZE);
-                out.flush();
-                out.writeUTF(requestedUsername);
-                out.flush();
-                int response = in.readInt();
-                if (response == Server.MSG_INVALID) {
-                    System.out.println("This username is already taken, choose another one:");
-                }
-                if (response == Server.MSG_VALID) {
-                    authorized = true;
-                    username = requestedUsername;
-                }
+            out.writeInt(Server.MSG_AUTHORIZE);
+            out.flush();
+            out.writeUTF(requestedUsername);
+            out.flush();
+            int response = in.readInt();
+            if (response == Server.MSG_INVALID) {
+                System.out.println("This username is already taken, choose another one:");
+            }
+            if (response == Server.MSG_VALID) {
+                authorized = true;
+                username = requestedUsername;
             }
             System.out.println("Successfully authorized.");
         } catch (IOException ioe) {
@@ -91,21 +81,26 @@ public class Client {
         try {
             System.out.println("Commands: \"DOWNLOAD <filename>\", \"UPLOAD "
                                    + "<filename>\", \"LIST\", \"QUIT\"");
-            String command = scan.nextLine();
-            while (!command.equalsIgnoreCase("QUIT")) {
-                if (command.equalsIgnoreCase("DOWNLOAD")) {
-                    String fileName = scan.next();
-                    download(fileName);
+            String command = scan.next();
+            while (!command.equalsIgnoreCase("quit")) {
+                if (authorized){
+                    if (command.equalsIgnoreCase("DOWNLOAD")) {
+                        String fileName = scan.next();
+                        download(fileName);
+                    } else if (command.equalsIgnoreCase("UPLOAD")) {
+                        String fileName = scan.next();
+                        upload(fileName);
+                    } else if (command.equalsIgnoreCase("LIST")) {
+                        listFiles();
+                    } else {
+                        System.out.println("Please enter a valid command.");
+                    }
                 }
-                else if (command.equalsIgnoreCase("UPLOAD")) {
-                    String fileName = scan.next();
-                    upload(fileName);
-                }
-                else if (command.equalsIgnoreCase("LIST")) {
-                    listFiles();
-                }
-                else {
-                    System.out.println("Please enter a valid command.");
+                if (command.equalsIgnoreCase("connect")) {//authorize
+                    String requestedUsername = scan.next();
+                    authorize(requestedUsername);
+                } else if (!authorized) {
+                    System.out.println("please authorize to send commands");
                 }
                 command = scan.next();
             }
@@ -156,7 +151,6 @@ public class Client {
 
     private void download(String fileName) throws IOException {
         System.out.println("Requesting download for: " + fileName);
-        ByteArrayInputStream randommask = new ByteArrayInputStream(randombytes);
         out.writeInt(Server.MSG_DOWNLOAD);
         out.flush();
         out.writeUTF(fileName);
@@ -171,12 +165,10 @@ public class Client {
             System.out.println("Download started ...");
             int iterNum = (int) (length / Server.BUFFER_LEN);
             int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
-            long lastUpdate = System.currentTimeMillis();
             int bytesred = -1488;
             int bytesDownloaded = 0;
             for (int i = 0; bytesDownloaded < length && i < 9000; i++) {
                 byte[] buffer = new byte[Server.BUFFER_LEN];
-                byte[] rbuffer = new byte[Server.BUFFER_LEN];
                 try {
                     bytesred = in.read(buffer);
                     //System.out.println("Download iteration " + i + ", " + bytesred + " bytes red");
@@ -184,22 +176,10 @@ public class Client {
                 catch (IOException e) {
                     //System.out.println("Download iteration " + i + ", IOException, " + bytesred + " bytes red");
                 }
-                randommask.read(rbuffer, 0, bytesred);
-                if (decrypt)
-                    for (int j = 0; j < bytesred; j++)
-                        buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                 fileWriter.write(buffer, 0, bytesred);
                 bytesDownloaded += bytesred;
-                if (i % 1024 == 0 && (System.currentTimeMillis()
-                        - lastUpdate> 1000 || i == 0)) {
-                    lastUpdate = System.currentTimeMillis();
-                    System.out.printf("%.3f MB / %.3f MB%n",
-                        (bytesDownloaded / (1024.0 * 1024.0)),
-                        (length / (1024.0 * 1024.0)));
-                }
             }
             fileWriter.close();
-            randommask.close();
             System.out.println("File downloaded.");
         } else {
             System.out.println("Unexpected response came from the server: " + response);
@@ -208,7 +188,6 @@ public class Client {
     
     private void upload(String fileName) throws IOException {
         System.out.println("Uploading the file to the server: " + fileName);
-        ByteArrayInputStream randommask = new ByteArrayInputStream(randombytes);
         File file = new File(fileName);
         if (!file.exists()) {
             System.out.println("File not found on the working directory.");
@@ -230,35 +209,16 @@ public class Client {
                 out.flush();
                 int iterNum = (int) (length / Server.BUFFER_LEN);
                 int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
-                long lastUpdate = System.currentTimeMillis();
                 for (int i = 0; i < iterNum; i++) {
                     byte[] buffer = new byte[Server.BUFFER_LEN];
-                    byte[] rbuffer = new byte[Server.BUFFER_LEN];
                     fileReader.read(buffer);
-                    randommask.read(rbuffer);
-                    if (encrypt)
-                        for (int j = 0; j < buffer.length; j++)
-                            buffer[j] = (byte) (buffer[j] ^ rbuffer[j]);
                     out.write(buffer);
-                    if (i % 1024 == 0 && (System.currentTimeMillis()
-                            - lastUpdate > 1000 || i == 0)) {
-                        lastUpdate = System.currentTimeMillis();
-                        System.out.printf("%.3f MB / %.3f MB%n",
-                            ((i * Server.BUFFER_LEN) / (1024.0 * 1024.0)),
-                            (length / (1024.0 * 1024.0)));
-                    }
                 }
                 byte[] rembuffer = new byte[remaining];
-                byte[] rrembuffer = new byte[remaining];
                 fileReader.read(rembuffer);
-                randommask.read(rrembuffer);
-                if (encrypt)
-                    for (int i = 0; i < rembuffer.length; i++)
-                        rembuffer[i] = (byte) ((int)rembuffer[i] ^ (int)rrembuffer[i]);
                 out.write(rembuffer);
                 out.flush();
                 fileReader.close();
-                randommask.close();
                 System.out.println("File uploaded.");
             } else {
                 System.out.println("Unexpected response came from the server: " + response);

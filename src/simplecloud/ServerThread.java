@@ -24,7 +24,7 @@ public class ServerThread implements Runnable {
     private boolean authorized;
     private String username;
 
-    private final String pathToStore = "storage\\";
+    private final String pathToStore = "storage";
     
     public ServerThread(Socket connectionSocket) throws IOException {
         this.connectionSocket = connectionSocket;
@@ -67,90 +67,14 @@ public class ServerThread implements Runnable {
                 
                 if (command == Server.MSG_DOWNLOAD) {
                     String fileName = in.readUTF();
-                    System.out.println("Download request: " + fileName);
-                    File file = new File(pathToStore + "\\" + fileName);
-                    if (!file.exists()) {
-                        System.out.println("Requested file not found.");
-                        out.writeInt(Server.MSG_INVALID);
-                        out.flush();
-                    }
-                    else {
-                        out.writeInt(Server.MSG_VALID);
-                        out.flush();
-                        System.out.println("Sending file ...");
-                        FileInputStream fileReader = new FileInputStream(file);
-                        long length = file.length();
-                        out.writeLong(length);
-                        out.flush();
-                        int iterNum = (int) (length / Server.BUFFER_LEN);
-                        int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
-                        for (int i = 0; i < iterNum; i++) {
-                            byte[] buffer = new byte[Server.BUFFER_LEN];
-                            fileReader.read(buffer);
-                            out.write(buffer);
-                        }
-                        byte[] rembuffer = new byte[remaining];
-                        fileReader.read(rembuffer);
-                        out.write(rembuffer);
-                        out.flush();
-                        System.out.println("File sent.");
-                        fileReader.close();
-                    }
+                    sendFileToClient(fileName);
                 }
-                
                 else if (command == Server.MSG_UPLOAD) {
-                    String fileName = in.readUTF();
-                    System.out.println("Upload request: " + fileName);
-                    File file = new File(pathToStore + "\\" + fileName);
-                    if (file.exists()) {
-                        System.out.println("Upload rejected due to the name conflict.");
-                        out.writeInt(Server.MSG_INVALID);
-                        out.flush();
-                    } else {
-                        out.writeInt(Server.MSG_VALID);
-                        out.flush();
-                        FileOutputStream fileWriter = new FileOutputStream(file);
-                        long length = in.readLong();
-                        System.out.println("Receiving started ...");
-                        int iterNum = (int) (length / Server.BUFFER_LEN);
-                        int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
-                        int bytesred = -1488;
-                        int bytesDownloaded = 0;
-                        for (int i = 0; bytesDownloaded < length && i < 9000; i++) {
-                            byte[] buffer = new byte[Server.BUFFER_LEN];
-                            try {
-                                bytesred = in.read(buffer);
-                                //System.out.println("Upload iteration " + i + ", " + bytesred + " bytes red");
-                            }
-                            catch (IOException ioe) {
-                                //System.out.println("Upload iteration " + i + ", IOException, " + bytesred + " bytes red");
-                                System.out.println("IOException: " + ioe);
-                            }
-                            fileWriter.write(buffer, 0, bytesred);
-                            bytesDownloaded += bytesred;
-                        }
-                        fileWriter.close();
-                        System.out.println("File received.");
-                    }
+                    loadFileFromClient();
                 }
-
                 else if (command == Server.MSG_LIST) {
-                    File folder = new File(pathToStore);
-                    File[] listOfFiles = folder.listFiles();
-                    int filesNumber = -1;
-                    if (listOfFiles != null)
-                        filesNumber = listOfFiles.length;
-                    out.writeInt(filesNumber);
-
-                    for (int i = 0; i < filesNumber; i++) {
-                        if (listOfFiles[i].isFile()) {
-                            out.writeBytes("file " + listOfFiles[i].getName()+"\n");
-                        } else if (listOfFiles[i].isDirectory()) {
-                            out.writeBytes("dir  " + listOfFiles[i].getName()+"\n");
-                        }
-                    }
+                    listFiles();
                 }
-                
                 else if (command == Server.MSG_QUIT) {
                     throw new IOException();
                 }
@@ -167,6 +91,92 @@ public class ServerThread implements Runnable {
                 in.close();
                 out.close();
             } catch (IOException e) { }
+        }
+    }
+
+    private void sendFileToClient(String fileName) throws IOException {
+        System.out.println("Download request: " + fileName);
+        File file = new File(pathToStore + "\\" + fileName);
+        if (!file.exists()) {
+            System.out.println("Requested file not found.");
+            out.writeInt(Server.MSG_INVALID);
+            out.flush();
+        }
+        else {
+            out.writeInt(Server.MSG_VALID);
+            out.flush();
+            System.out.println("Sending file ...");
+            FileInputStream fileReader = new FileInputStream(file);
+            long length = file.length();
+            System.out.println("file len = " + length);
+            out.writeLong(length);
+            out.flush();
+            int iterNum = (int) (length / Server.BUFFER_LEN);
+            int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
+            for (int i = 0; i < iterNum; i++) {
+                byte[] buffer = new byte[Server.BUFFER_LEN];
+                fileReader.read(buffer);
+                out.write(buffer);
+            }
+            byte[] rembuffer = new byte[remaining];
+            fileReader.read(rembuffer);
+            out.write(rembuffer);
+            out.flush();
+            System.out.println("File sent.");
+            fileReader.close();
+        }
+    }
+
+    private void loadFileFromClient() throws IOException {
+        String fileName = in.readUTF();
+        System.out.println("Upload request: " + fileName);
+        File file = new File(pathToStore + "\\" + fileName);
+        if (file.exists()) {
+            System.out.println("Upload rejected due to the name conflict.");
+            out.writeInt(Server.MSG_INVALID);
+            out.flush();
+        } else {
+            out.writeInt(Server.MSG_VALID);
+            out.flush();
+            FileOutputStream fileWriter = new FileOutputStream(file);
+            long length = in.readLong();
+            System.out.println("Receiving started ...");
+            int iterNum = (int) (length / Server.BUFFER_LEN);
+            int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
+            int bytesred = -1488;
+            int bytesDownloaded = 0;
+            for (int i = 0; bytesDownloaded < length && i < 9000; i++) {
+                byte[] buffer = new byte[Server.BUFFER_LEN];
+                try {
+                    bytesred = in.read(buffer);
+                    //System.out.println("Upload iteration " + i + ", " + bytesred + " bytes red");
+                }
+                catch (IOException ioe) {
+                    //System.out.println("Upload iteration " + i + ", IOException, " + bytesred + " bytes red");
+                    System.out.println("IOException: " + ioe);
+                }
+                fileWriter.write(buffer, 0, bytesred);
+                bytesDownloaded += bytesred;
+            }
+            fileWriter.close();
+            System.out.println("File received.");
+        }
+    }
+
+    private void listFiles() throws IOException {
+        File folder = new File(pathToStore);
+        File[] listOfFiles = folder.listFiles();
+        int filesNumber = -1;
+        if (listOfFiles != null)
+            filesNumber = listOfFiles.length;
+        out.writeInt(filesNumber);
+
+        for (int i = 0; i < filesNumber; i++) {
+            if (listOfFiles[i].isFile()) {
+                out.writeBytes("file " + listOfFiles[i].getName()+"\n");
+            } else if (listOfFiles[i].isDirectory()) {
+                out.writeBytes("dir  " + listOfFiles[i].getName()+"\n");
+            }
         }
     }
     
