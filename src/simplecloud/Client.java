@@ -15,43 +15,74 @@ public class CloudClient {
     private final DataOutputStream out;
 
     private static byte[] randombytes;
-    private boolean decrypt = true;
-    private boolean encrypt = true;
+    private boolean decrypt = false;
+    private boolean encrypt = false;
+    private boolean authorized = false;
+    private String username;
 
-    public static void startClient(String ip, int port) {
-        CloudClient client = null;
-        try {
-            client = new CloudClient(ip, port);
-        } catch (IOException e) {
-            System.out.println("Connection failed.");
-            return;
-        }
-
-        randombytes = new byte [SimpleCloud.BUFFER_LEN];
-        Scanner scan = new Scanner(System.in);
-        System.out.println("Enter the encrypting password:");
-        String password = scan.next();
-        SecureRandom random = new SecureRandom();
-        random.setSeed(password.getBytes(StandardCharsets.UTF_8));
-        random.nextBytes(randombytes);
-
-        client.takeCommands();
-    }
-    
-    private CloudClient(String ip, int port) throws IOException {
+    private CloudClient(String ip, int port, boolean encrypt, boolean decrypt) throws IOException {
         System.out.println("Connecting to " + ip + ":" + port + " ...");
         socket = new Socket(ip, port);
         in = new DataInputStream(socket.getInputStream());
         out = new DataOutputStream(socket.getOutputStream());
     }
+
+    public static void startClient(String ip, int port, boolean encryption) {
+        CloudClient client = null;
+        try {
+            client = new CloudClient(ip, port, encryption, encryption);
+            System.out.println("Connected.");
+        } catch (IOException e) {
+            System.out.println("Connection failed.");
+            return;
+        }
+
+        if (encryption) {
+            randombytes = new byte[SimpleCloud.BUFFER_LEN];
+            Scanner scan = new Scanner(System.in);
+            System.out.println("Enter the encrypting password:");
+            String password = scan.next();
+            SecureRandom random = new SecureRandom();
+            random.setSeed(password.getBytes(StandardCharsets.UTF_8));
+            random.nextBytes(randombytes);
+        }
+
+        client.authorize();
+
+        client.takeCommands();
+    }
+
+    private void authorize() {
+        Scanner scan = new Scanner(System.in);
+        System.out.println("Please enter username:");
+        try {
+            while (!authorized) {
+                String requestedUsername = scan.next();
+                out.writeInt(SimpleCloud.MSG_AUTHORIZE);
+                out.flush();
+                out.writeUTF(requestedUsername);
+                out.flush();
+                int response = in.readInt();
+                if (response == SimpleCloud.MSG_INVALID) {
+                    System.out.println("This username is already taken, choose another one:");
+                }
+                if (response == SimpleCloud.MSG_VALID) {
+                    authorized = true;
+                    username = requestedUsername;
+                }
+            }
+            System.out.println("Successfully authorized.");
+        } catch (IOException ioe) {
+            System.out.println("IOException: " + ioe);
+        }
+    }
     
     private void takeCommands() {
         Scanner scan = new Scanner(System.in);
         try {
-            System.out.println("Connected.");
             System.out.println("Commands: \"DOWNLOAD <filename>\", \"UPLOAD "
                                    + "<filename>\", \"LIST\", \"QUIT\"");
-            String command = scan.next();
+            String command = scan.nextLine();
             while (!command.equalsIgnoreCase("QUIT")) {
                 if (command.equalsIgnoreCase("DOWNLOAD")) {
                     String fileName = scan.next();
@@ -73,23 +104,31 @@ public class CloudClient {
             out.flush();
         } catch (IOException e) {
             System.out.println("Disconnected from the server.");
+        } finally {
+            scan.close();
         }
     }
 
     private void listFiles() {
-        try {out.writeInt(SimpleCloud.MSG_LIST);}
+        try {
+            out.writeInt(SimpleCloud.MSG_LIST);
+        }
         catch (IOException ioe) {
             System.out.println("IOException: " + ioe);
         }
         int fileNumber = -1;
-        try {fileNumber = in.readInt();}
+        try {
+            fileNumber = in.readInt();
+        }
         catch (IOException ioe) {
             System.out.println("IOException: " + ioe);
         }
-        if (fileNumber < 0)
+        if (fileNumber < 0) {
             System.out.println("Some error occured, \"fileNumber < 0\"");
-        else if (fileNumber == 0)
+        }
+        else if (fileNumber == 0) {
             System.out.println("Server directory empty, no files stored");
+        }
         else {
             System.out.println("List of files on the server:");
             byte[] tmp = new byte[300];

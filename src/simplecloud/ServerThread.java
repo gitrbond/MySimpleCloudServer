@@ -8,25 +8,59 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 
 public class CloudServer implements Runnable {
-    
+
+    //private static final List<String> usernames = new ArrayList<>();
+    private static final List<String> usernames = Collections.synchronizedList(new ArrayList<String>());
+
     private final Socket connectionSocket;
     private final DataOutputStream out;
     private final DataInputStream in;
+    private boolean authorized;
+    private String username;
 
     private final String pathToStore = "C:\\Users\\user\\MySimpleCloudServer\\storage";
     
     public CloudServer(Socket connectionSocket) throws IOException {
         this.connectionSocket = connectionSocket;
-        this.out = new DataOutputStream(connectionSocket.getOutputStream());
-        this.in = new DataInputStream(connectionSocket.getInputStream());
+        out = new DataOutputStream(connectionSocket.getOutputStream());
+        in = new DataInputStream(connectionSocket.getInputStream());
+        authorized = false;
+        username = null;
     }
     
     @Override
     public void run() {
         System.out.println("Client connected: <" + connectionSocket.getInetAddress() + ">");
+        try {
+            while (!authorized) {
+                int command = in.readInt();
+                if (command == SimpleCloud.MSG_AUTHORIZE) {
+                    String requestedUsername = in.readUTF();
+                    if (!usernames.contains(requestedUsername)) {
+                        out.writeInt(SimpleCloud.MSG_VALID);
+                        username = requestedUsername;
+                        System.out.println("username " + username + " accepted");
+                        authorized = true;
+                    }
+                    else {
+                        out.writeInt(SimpleCloud.MSG_INVALID);
+                    }
+                }
+            }
+        }
+        catch (Exception e) {
+            System.out.println("Authorization of client <" + connectionSocket.getInetAddress() + "> failed");
+            e.printStackTrace();
+            return;
+        }
+        System.out.println("Authorized <" + connectionSocket.getInetAddress() + "> under username " + username);
+        usernames.add(username);
         try {
             while (true) {
                 //System.out.println("Listening ...");
@@ -123,13 +157,11 @@ public class CloudServer implements Runnable {
                 }
                 
                 else {
-                    System.out.println("Client <" + connectionSocket.getInetAddress() 
-                                           + "> sent invalid command.");
+                    System.out.println("Client " + username + " sent invalid command.");
                 }
             }
         } catch (IOException e) {
-            System.out.println("Client disconnected: <"
-                + connectionSocket.getInetAddress() + ">");
+            System.out.println("Client disconnected: " + username);
         } finally {
             try {
                 in.close();
