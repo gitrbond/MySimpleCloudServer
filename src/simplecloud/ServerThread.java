@@ -13,7 +13,7 @@ import java.util.Collections;
 import java.util.List;
 
 
-public class CloudServer implements Runnable {
+public class ServerThread implements Runnable {
 
     //private static final List<String> usernames = new ArrayList<>();
     private static final List<String> usernames = Collections.synchronizedList(new ArrayList<String>());
@@ -24,9 +24,9 @@ public class CloudServer implements Runnable {
     private boolean authorized;
     private String username;
 
-    private final String pathToStore = "C:\\Users\\user\\MySimpleCloudServer\\storage";
+    private final String pathToStore = "storage\\";
     
-    public CloudServer(Socket connectionSocket) throws IOException {
+    public ServerThread(Socket connectionSocket) throws IOException {
         this.connectionSocket = connectionSocket;
         out = new DataOutputStream(connectionSocket.getOutputStream());
         in = new DataInputStream(connectionSocket.getInputStream());
@@ -40,16 +40,15 @@ public class CloudServer implements Runnable {
         try {
             while (!authorized) {
                 int command = in.readInt();
-                if (command == SimpleCloud.MSG_AUTHORIZE) {
+                if (command == Server.MSG_AUTHORIZE) {
                     String requestedUsername = in.readUTF();
                     if (!usernames.contains(requestedUsername)) {
-                        out.writeInt(SimpleCloud.MSG_VALID);
+                        out.writeInt(Server.MSG_VALID);
                         username = requestedUsername;
-                        System.out.println("username " + username + " accepted");
                         authorized = true;
                     }
                     else {
-                        out.writeInt(SimpleCloud.MSG_INVALID);
+                        out.writeInt(Server.MSG_INVALID);
                     }
                 }
             }
@@ -59,34 +58,34 @@ public class CloudServer implements Runnable {
             e.printStackTrace();
             return;
         }
-        System.out.println("Authorized <" + connectionSocket.getInetAddress() + "> under username " + username);
+        System.out.println("Authorized <" + connectionSocket.getInetAddress() + "> under username \"" + username + "\"");
         usernames.add(username);
         try {
             while (true) {
                 //System.out.println("Listening ...");
                 int command = in.readInt();
                 
-                if (command == SimpleCloud.MSG_DOWNLOAD) {
+                if (command == Server.MSG_DOWNLOAD) {
                     String fileName = in.readUTF();
                     System.out.println("Download request: " + fileName);
                     File file = new File(pathToStore + "\\" + fileName);
                     if (!file.exists()) {
                         System.out.println("Requested file not found.");
-                        out.writeInt(SimpleCloud.MSG_INVALID);
+                        out.writeInt(Server.MSG_INVALID);
                         out.flush();
                     }
                     else {
-                        out.writeInt(SimpleCloud.MSG_VALID);
+                        out.writeInt(Server.MSG_VALID);
                         out.flush();
                         System.out.println("Sending file ...");
                         FileInputStream fileReader = new FileInputStream(file);
                         long length = file.length();
                         out.writeLong(length);
                         out.flush();
-                        int iterNum = (int) (length / SimpleCloud.BUFFER_LEN);
-                        int remaining = (int) (length - iterNum * SimpleCloud.BUFFER_LEN);
+                        int iterNum = (int) (length / Server.BUFFER_LEN);
+                        int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
                         for (int i = 0; i < iterNum; i++) {
-                            byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
+                            byte[] buffer = new byte[Server.BUFFER_LEN];
                             fileReader.read(buffer);
                             out.write(buffer);
                         }
@@ -99,26 +98,26 @@ public class CloudServer implements Runnable {
                     }
                 }
                 
-                else if (command == SimpleCloud.MSG_UPLOAD) {
+                else if (command == Server.MSG_UPLOAD) {
                     String fileName = in.readUTF();
                     System.out.println("Upload request: " + fileName);
                     File file = new File(pathToStore + "\\" + fileName);
                     if (file.exists()) {
                         System.out.println("Upload rejected due to the name conflict.");
-                        out.writeInt(SimpleCloud.MSG_INVALID);
+                        out.writeInt(Server.MSG_INVALID);
                         out.flush();
                     } else {
-                        out.writeInt(SimpleCloud.MSG_VALID);
+                        out.writeInt(Server.MSG_VALID);
                         out.flush();
                         FileOutputStream fileWriter = new FileOutputStream(file);
                         long length = in.readLong();
                         System.out.println("Receiving started ...");
-                        int iterNum = (int) (length / SimpleCloud.BUFFER_LEN);
-                        int remaining = (int) (length - iterNum * SimpleCloud.BUFFER_LEN);
+                        int iterNum = (int) (length / Server.BUFFER_LEN);
+                        int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
                         int bytesred = -1488;
                         int bytesDownloaded = 0;
                         for (int i = 0; bytesDownloaded < length && i < 9000; i++) {
-                            byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
+                            byte[] buffer = new byte[Server.BUFFER_LEN];
                             try {
                                 bytesred = in.read(buffer);
                                 //System.out.println("Upload iteration " + i + ", " + bytesred + " bytes red");
@@ -135,7 +134,7 @@ public class CloudServer implements Runnable {
                     }
                 }
 
-                else if (command == SimpleCloud.MSG_LIST) {
+                else if (command == Server.MSG_LIST) {
                     File folder = new File(pathToStore);
                     File[] listOfFiles = folder.listFiles();
                     int filesNumber = -1;
@@ -152,16 +151,17 @@ public class CloudServer implements Runnable {
                     }
                 }
                 
-                else if (command == SimpleCloud.MSG_QUIT) {
+                else if (command == Server.MSG_QUIT) {
                     throw new IOException();
                 }
                 
                 else {
-                    System.out.println("Client " + username + " sent invalid command.");
+                    System.out.println("Client \"" + username + "\" sent invalid command.");
                 }
             }
         } catch (IOException e) {
-            System.out.println("Client disconnected: " + username);
+            usernames.remove(username);
+            System.out.println("Client \"" + username + "\" disconnected");
         } finally {
             try {
                 in.close();
@@ -190,8 +190,8 @@ public class CloudServer implements Runnable {
         while (true) {
             try {
                 Socket connectionSocket = serverSocket.accept();
-                CloudServer cloudServer = new CloudServer(connectionSocket);
-                Thread thread = new Thread(cloudServer);
+                ServerThread serverThread = new ServerThread(connectionSocket);
+                Thread thread = new Thread(serverThread);
                 thread.start();
             } catch (IOException e) {
                 System.out.println("An error occured while a client is connecting.");

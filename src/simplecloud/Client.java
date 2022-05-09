@@ -1,14 +1,15 @@
 package simplecloud;
 
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 import java.io.*;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Scanner;
 
 
-public class CloudClient {
+public class Client {
     
     private final Socket socket;
     private final DataInputStream in;
@@ -20,31 +21,39 @@ public class CloudClient {
     private boolean authorized = false;
     private String username;
 
-    private CloudClient(String ip, int port, boolean encrypt, boolean decrypt) throws IOException {
+    public static final String pathToClientProps = "client-properties.txt";
+
+    private Client(String ip, int port, boolean encrypt, boolean decrypt) throws IOException {
         System.out.println("Connecting to " + ip + ":" + port + " ...");
         socket = new Socket(ip, port);
         in = new DataInputStream(socket.getInputStream());
         out = new DataOutputStream(socket.getOutputStream());
     }
 
-    public static void startClient(String ip, int port, boolean encryption) {
-        CloudClient client = null;
+    public static void main (String[] args) {//startClient(String ip, int port, boolean encryption) {
+        long port = 0;
+        String ip = "";
+        try (FileReader reader = new FileReader(pathToClientProps))
+        {
+            System.out.println("reading parameters from " + pathToClientProps);
+            JSONParser jsonParser = new JSONParser();
+            JSONObject jsonObject = (JSONObject) jsonParser.parse(reader);
+            port = (long) jsonObject.get("port");
+            ip = (String) jsonObject.get("server-ip");
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return;
+        }
+        Client client = null;
         try {
-            client = new CloudClient(ip, port, encryption, encryption);
+            client = new Client(ip, (int)port, false, false);
             System.out.println("Connected.");
         } catch (IOException e) {
             System.out.println("Connection failed.");
             return;
-        }
-
-        if (encryption) {
-            randombytes = new byte[SimpleCloud.BUFFER_LEN];
-            Scanner scan = new Scanner(System.in);
-            System.out.println("Enter the encrypting password:");
-            String password = scan.next();
-            SecureRandom random = new SecureRandom();
-            random.setSeed(password.getBytes(StandardCharsets.UTF_8));
-            random.nextBytes(randombytes);
         }
 
         client.authorize();
@@ -58,15 +67,15 @@ public class CloudClient {
         try {
             while (!authorized) {
                 String requestedUsername = scan.next();
-                out.writeInt(SimpleCloud.MSG_AUTHORIZE);
+                out.writeInt(Server.MSG_AUTHORIZE);
                 out.flush();
                 out.writeUTF(requestedUsername);
                 out.flush();
                 int response = in.readInt();
-                if (response == SimpleCloud.MSG_INVALID) {
+                if (response == Server.MSG_INVALID) {
                     System.out.println("This username is already taken, choose another one:");
                 }
-                if (response == SimpleCloud.MSG_VALID) {
+                if (response == Server.MSG_VALID) {
                     authorized = true;
                     username = requestedUsername;
                 }
@@ -100,7 +109,7 @@ public class CloudClient {
                 }
                 command = scan.next();
             }
-            out.writeInt(SimpleCloud.MSG_QUIT);
+            out.writeInt(Server.MSG_QUIT);
             out.flush();
         } catch (IOException e) {
             System.out.println("Disconnected from the server.");
@@ -111,7 +120,7 @@ public class CloudClient {
 
     private void listFiles() {
         try {
-            out.writeInt(SimpleCloud.MSG_LIST);
+            out.writeInt(Server.MSG_LIST);
         }
         catch (IOException ioe) {
             System.out.println("IOException: " + ioe);
@@ -148,26 +157,26 @@ public class CloudClient {
     private void download(String fileName) throws IOException {
         System.out.println("Requesting download for: " + fileName);
         ByteArrayInputStream randommask = new ByteArrayInputStream(randombytes);
-        out.writeInt(SimpleCloud.MSG_DOWNLOAD);
+        out.writeInt(Server.MSG_DOWNLOAD);
         out.flush();
         out.writeUTF(fileName);
         out.flush();
         int response = in.readInt();
-        if (response == SimpleCloud.MSG_INVALID) {
+        if (response == Server.MSG_INVALID) {
             System.out.println("This file doesn't exists on the server's working directory.");
-        } else if (response == SimpleCloud.MSG_VALID) {
+        } else if (response == Server.MSG_VALID) {
             File file = new File(fileName);
             FileOutputStream fileWriter = new FileOutputStream(file);
             long length = in.readLong();
             System.out.println("Download started ...");
-            int iterNum = (int) (length / SimpleCloud.BUFFER_LEN);
-            int remaining = (int) (length - iterNum * SimpleCloud.BUFFER_LEN);
+            int iterNum = (int) (length / Server.BUFFER_LEN);
+            int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
             long lastUpdate = System.currentTimeMillis();
             int bytesred = -1488;
             int bytesDownloaded = 0;
             for (int i = 0; bytesDownloaded < length && i < 9000; i++) {
-                byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
-                byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
+                byte[] buffer = new byte[Server.BUFFER_LEN];
+                byte[] rbuffer = new byte[Server.BUFFER_LEN];
                 try {
                     bytesred = in.read(buffer);
                     //System.out.println("Download iteration " + i + ", " + bytesred + " bytes red");
@@ -205,26 +214,26 @@ public class CloudClient {
             System.out.println("File not found on the working directory.");
         }
         else {
-            out.writeInt(SimpleCloud.MSG_UPLOAD);
+            out.writeInt(Server.MSG_UPLOAD);
             out.flush();
             out.writeUTF(fileName);
             out.flush();
             int response = in.readInt();
-            if (response == SimpleCloud.MSG_INVALID) {
+            if (response == Server.MSG_INVALID) {
                 System.out.println("You can't upload this file since there is a "
                                        + "file with the same name on the server.");
-            } else if (response == SimpleCloud.MSG_VALID) {
+            } else if (response == Server.MSG_VALID) {
                 System.out.println("Upload started ...");
                 FileInputStream fileReader = new FileInputStream(file);
                 long length = file.length();
                 out.writeLong(length);
                 out.flush();
-                int iterNum = (int) (length / SimpleCloud.BUFFER_LEN);
-                int remaining = (int) (length - iterNum * SimpleCloud.BUFFER_LEN);
+                int iterNum = (int) (length / Server.BUFFER_LEN);
+                int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
                 long lastUpdate = System.currentTimeMillis();
                 for (int i = 0; i < iterNum; i++) {
-                    byte[] buffer = new byte[SimpleCloud.BUFFER_LEN];
-                    byte[] rbuffer = new byte[SimpleCloud.BUFFER_LEN];
+                    byte[] buffer = new byte[Server.BUFFER_LEN];
+                    byte[] rbuffer = new byte[Server.BUFFER_LEN];
                     fileReader.read(buffer);
                     randommask.read(rbuffer);
                     if (encrypt)
@@ -235,7 +244,7 @@ public class CloudClient {
                             - lastUpdate > 1000 || i == 0)) {
                         lastUpdate = System.currentTimeMillis();
                         System.out.printf("%.3f MB / %.3f MB%n",
-                            ((i * SimpleCloud.BUFFER_LEN) / (1024.0 * 1024.0)),
+                            ((i * Server.BUFFER_LEN) / (1024.0 * 1024.0)),
                             (length / (1024.0 * 1024.0)));
                     }
                 }
