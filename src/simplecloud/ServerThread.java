@@ -62,7 +62,7 @@ public class ServerThread implements Runnable {
         }
         System.out.println("Authorized <" + connectionSocket.getInetAddress() + "> under username \"" + username + "\"");
         usernames.add(username);
-        chat.add("@" + username + " joined chat");
+        chat.add("user @" + username + " joined chat");
         try {
             while (true) {
                 //System.out.println("Listening ...");
@@ -94,7 +94,7 @@ public class ServerThread implements Runnable {
             }
         } catch (IOException e) {
             usernames.remove(username);
-            chat.add("user " + username + "left chat");
+            chat.add("user @" + username + " left chat");
             System.out.println("Client \"" + username + "\" disconnected");
         } finally {
             try {
@@ -105,7 +105,7 @@ public class ServerThread implements Runnable {
     }
 
     private void syncClient() {
-        System.out.println("@" + username + " wants to sync ...");
+        //System.out.println("@" + username + " wants to sync ...");
         int clientChatPosition;
         try {
             //size on client's side
@@ -122,13 +122,13 @@ public class ServerThread implements Runnable {
                 int sendNumber = currentChatState - clientChatPosition;
                 out.writeInt(sendNumber);
                 List<String> messagesToSend = chat.subList(clientChatPosition, currentChatState);
-                System.out.println("Sending " + sendNumber + " messages");
-//                for (String line : messagesToSend) {
-//                    byte[] data = line.getBytes(StandardCharsets.UTF_8);
-//                    out.writeInt(data.length);
-//                    out.write(data);
-//                }
-                System.out.println("sent: {" + messagesToSend + "}");
+                //System.out.println("Sending " + sendNumber + " messages");
+                for (String line : messagesToSend) {
+                    byte[] data = line.getBytes(StandardCharsets.UTF_8);
+                    out.writeInt(data.length);
+                    out.write(data);
+                }
+                //System.out.println("sent: {" + messagesToSend + "}");
             }
             else {
                 out.writeInt(Server.MSG_INVALID);
@@ -165,7 +165,7 @@ public class ServerThread implements Runnable {
                 byte[] data = new byte[length];
                 in.readFully(data);
                 String message = new String(data, StandardCharsets.UTF_8);
-                chat.add("@" + username + ":" + message);
+                chat.add("@" + username + ": " + message);
                 System.out.println("@" + username + " said \"" + message + "\"");
             }
             else {
@@ -174,14 +174,6 @@ public class ServerThread implements Runnable {
         }
         catch (IOException ioe) {
             System.out.println("Unable to read response from client, IOException: " + ioe);
-        }
-        try {
-            out.writeInt(Server.MSG_SYNC);
-            out.flush();
-        }
-        catch (IOException ioe) {
-            System.out.println("Unable to send SYNC command, IOException: " + ioe);
-            return;
         }
     }
 
@@ -198,7 +190,7 @@ public class ServerThread implements Runnable {
             out.flush();
             FileInputStream fileReader = new FileInputStream(file);
             long length = file.length();
-            System.out.println("file len = " + length);
+            //System.out.println("file len = " + length);
 //            out.writeLong(length);
             out.writeInt((int)length);
             out.flush();
@@ -251,6 +243,8 @@ public class ServerThread implements Runnable {
             }
             fileWriter.close();
             System.out.println("File received.");
+            chat.add("file upload by @" + username + ": " + fileName);
+            System.out.println("@" + username + " uploaded file \"" + fileName + "\"");
         }
     }
 
