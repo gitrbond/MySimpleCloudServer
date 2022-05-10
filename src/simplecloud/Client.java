@@ -1,8 +1,8 @@
 package simplecloud;
 
-//import org.json.simple.JSONObject;
-//import org.json.simple.parser.JSONParser;
-//import org.json.simple.parser.ParseException;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.Socket;
@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Scanner;
-
 
 public class Client {
     public static final int OP_NOP = 0;
@@ -43,29 +42,25 @@ public class Client {
         out = new DataOutputStream(socket.getOutputStream());
     }
 
-    public static void main (String[] args) {
+    public static void main(String[] args) {
         long port = 0;
         String ip = "";
-        try (FileReader reader = new FileReader(pathToClientProps))
-        {
+        try (FileReader reader = new FileReader(pathToClientProps)) {
             System.out.println("reading parameters from " + pathToClientProps);
-//            JSONParser jsonParser = new JSONParser();
-//            JSONObject jsonObject = (JSONObject) jsonParser.parse(reader);
-//            port = (long) jsonObject.get("port");
-//            ip = (String) jsonObject.get("server-ip");
-            port = 64320;
-            ip = "127.0.0.1";
+            JSONParser jsonParser = new JSONParser();
+            JSONObject jsonObject = (JSONObject) jsonParser.parse(reader);
+            port = (long) jsonObject.get("port");
+            ip = (String) jsonObject.get("server-ip");
         } catch (IOException e) {
             e.printStackTrace();
             return;
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return;
         }
-//        catch (ParseException e) {
-//            e.printStackTrace();
-//            return;
-//        }
         Client client = null;
         try {
-            client = new Client(ip, (int)port);
+            client = new Client(ip, (int) port);
             System.out.println("Connected.");
         } catch (IOException e) {
             System.out.println("Connection failed.");
@@ -73,7 +68,6 @@ public class Client {
         }
 
         Thread inputThread = new Thread(client::executeCommands);
-//        Thread inputThread = new Thread(client::takeCommands);
         inputThread.start();
 
 
@@ -82,7 +76,7 @@ public class Client {
         Scanner scan = new Scanner(System.in);
         while (!quit) {
             String command = scan.nextLine();
-            if (authorized){
+            if (authorized) {
                 if (command.startsWith("send text ")) {
                     while (true) {
                         if (operation == OP_NOP) {
@@ -91,8 +85,7 @@ public class Client {
                             break;
                         }
                     }
-                }
-                else if (command.startsWith("send file ")) {
+                } else if (command.startsWith("send file ")) {
                     while (true) {
                         if (operation == OP_NOP) {
                             operation = OP_SENDFILE;
@@ -100,24 +93,12 @@ public class Client {
                             break;
                         }
                     }
-                }
-                else if (command.startsWith("get file ")) {
-                    while (true) {
-                        if (operation == OP_NOP) {
-                            operation = OP_GETFILE;
-                            param = command.substring("get file ".length()).stripLeading();
-                            break;
-                        }
-                    }
-                }
-                else if (command.startsWith("quit")) {
+                } else if (command.startsWith("quit")) {
                     quit = true;
-                }
-                else {
+                } else {
                     System.out.println("Please enter a valid command.");
                 }
-            }
-            else if (command.startsWith("connect ")) {
+            } else if (command.startsWith("connect ")) {
                 while (true) {
                     if (operation == OP_NOP) {
                         operation = OP_CONNECT;
@@ -126,11 +107,9 @@ public class Client {
                         break;
                     }
                 }
-            }
-            else if (command.startsWith("quit")) {
+            } else if (command.startsWith("quit")) {
                 quit = true;
-            }
-            else {
+            } else {
                 System.out.println("please authorize to send commands");
             }
         }
@@ -147,22 +126,12 @@ public class Client {
             if (operation == OP_CONNECT) {
                 authorize(param);
                 operation = OP_NOP;
-            }
-            else if (operation == OP_SENDTEXT) {
+            } else if (operation == OP_SENDTEXT) {
                 say(param);
                 operation = OP_NOP;
-            }
-            else if (operation == OP_SENDFILE) {
+            } else if (operation == OP_SENDFILE) {
                 try {
                     upload(param);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                operation = OP_NOP;
-            }
-            else if (operation == OP_GETFILE) {
-                try {
-                    download(param);
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -173,50 +142,6 @@ public class Client {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        }
-    }
-    
-    private void takeCommands() {
-        Scanner scan = new Scanner(System.in);
-        try {
-            System.out.println("Commands: \"DOWNLOAD <filename>\", \"UPLOAD "
-                                   + "<filename>\", \"LIST\", \"QUIT\"");
-            String command = scan.next();
-            while (!command.equalsIgnoreCase("quit")) {
-                if (authorized){
-                    if (command.equalsIgnoreCase("DOWNLOAD")) {
-                        String fileName = scan.next();
-                        download(fileName);
-                    }
-                    else if (command.equalsIgnoreCase("UPLOAD")) {
-                        String fileName = scan.next();
-                        upload(fileName);
-                    }
-                    else if (command.equalsIgnoreCase("LIST")) {
-                        listFiles();
-                    }
-                    else if (command.equalsIgnoreCase("say")) {
-                        String message = scan.nextLine();
-                        say(message);
-                    }
-                    else {
-                        System.out.println("Please enter a valid command.");
-                    }
-                }
-                if (command.equalsIgnoreCase("connect")) {//authorize
-                    String requestedUsername = scan.next();
-                    authorize(requestedUsername);
-                } else if (!authorized) {
-                    System.out.println("please authorize to send commands");
-                }
-            }
-            out.writeInt(Server.MSG_QUIT);
-            out.flush();
-        } catch (IOException e) {
-            System.out.println("Disconnected from the server.");
-        } finally {
-            scan.close();
-            quit = true;
         }
     }
 
@@ -249,8 +174,7 @@ public class Client {
             out.writeInt(Server.MSG_SYNC);
             out.writeInt(clientChatPosition);
             out.flush();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to send command, IOException: " + ioe);
             return;
         }
@@ -273,12 +197,10 @@ public class Client {
                     System.out.println(chatString);
                     chat.add(chatString);
                 }
-            }
-            else {
+            } else {
                 //System.out.println("Nothing to sync");
             }
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to read response from server, IOException: " + ioe);
             return;
         }
@@ -286,8 +208,7 @@ public class Client {
             for (String fileName : filesToLoad) {
                 download(fileName);
             }
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to load some files from server during SYNC, IOException: " + ioe);
         }
     }
@@ -298,16 +219,14 @@ public class Client {
             out.writeInt(Server.MSG_SAY);
             out.writeInt(data.length);
             out.flush();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to send command, IOException: " + ioe);
             return;
         }
         int response;
         try {
             response = in.readInt();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to read response from server, IOException: " + ioe);
             return;
         }
@@ -316,51 +235,12 @@ public class Client {
                 out.writeInt(Server.MSG_VALID);
                 out.flush();
                 out.write(data);
-            }
-            else {
+            } else {
                 out.writeInt(Server.MSG_INVALID);
             }
             out.flush();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to send command, IOException: " + ioe);
-        }
-    }
-
-    private void listFiles() {
-        try {
-            out.writeInt(Server.MSG_LIST);
-        }
-        catch (IOException ioe) {
-            System.out.println("Unable to send command, IOException: " + ioe);
-            return;
-        }
-        int fileNumber = -1;
-        try {
-            fileNumber = in.readInt();
-        }
-        catch (IOException ioe) {
-            System.out.println("IOException: " + ioe);
-        }
-        if (fileNumber < 0) {
-            System.out.println("Some error occured, \"fileNumber < 0\"");
-        }
-        else if (fileNumber == 0) {
-            System.out.println("Server directory empty, no files stored");
-        }
-        else {
-            System.out.println("List of files on the server:");
-            byte[] tmp = new byte[300];
-            try {
-                for (int i = 0; i < 1; i++) {
-                    //in.read(tmp);
-                    int bytesred = in.read(tmp);
-                    if (bytesred > 0)
-                        System.out.print(new String(tmp, 0, bytesred));
-                }
-            } catch (IOException ioe) {
-                System.out.println("IOException: " + ioe);
-            }
         }
     }
 
@@ -379,7 +259,6 @@ public class Client {
             System.out.println("This file doesn't exists on the server's working directory.");
         } else if (response == Server.MSG_VALID) {
             FileOutputStream fileWriter = new FileOutputStream(file);
-//            long length = in.readLong();
             int length = in.readInt();
             //System.out.println("Download of " + length + " bytes started ...");
             int iterNum = (length / Server.BUFFER_LEN);
@@ -391,8 +270,7 @@ public class Client {
                 try {
                     bytesred = in.read(buffer);
                     //System.out.println("Download iteration " + i + ", " + bytesred + " bytes red");
-                }
-                catch (IOException e) {
+                } catch (IOException e) {
                     //System.out.println("Download iteration " + i + ", IOException, " + bytesred + " bytes red");
                 }
                 fileWriter.write(buffer, 0, bytesred);
@@ -404,14 +282,13 @@ public class Client {
             System.out.println("Unexpected response came from the server: " + response);
         }
     }
-    
+
     private void upload(String fileName) throws IOException {
         //System.out.println("Uploading the file to the server: " + fileName);
         File file = new File(pathToStore + "\\" + fileName);
         if (!file.exists()) {
             System.out.println("File not found on the working directory.");
-        }
-        else {
+        } else {
             out.writeInt(Server.MSG_UPLOAD);
             out.flush();
             out.writeUTF(fileName);
@@ -419,7 +296,7 @@ public class Client {
             int response = in.readInt();
             if (response == Server.MSG_INVALID) {
                 System.out.println("You can't upload this file since there is a "
-                                       + "file with the same name on the server.");
+                        + "file with the same name on the server.");
             } else if (response == Server.MSG_VALID) {
                 //System.out.println("Upload started ...");
                 FileInputStream fileReader = new FileInputStream(file);
@@ -444,5 +321,5 @@ public class Client {
             }
         }
     }
-    
+
 }

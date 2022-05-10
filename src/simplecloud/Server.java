@@ -1,13 +1,12 @@
 package simplecloud;
 
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
+
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Scanner;
-
-//import org.json.simple.JSONObject;
-//import org.json.simple.parser.JSONParser;
-//import org.json.simple.parser.ParseException;
 
 public class Server {
     public static final int MSG_UPLOAD = 1;
@@ -26,22 +25,19 @@ public class Server {
 
     public static void main(String[] args) {
         long port;
-        try (FileReader reader = new FileReader(pathToServerProps))
-        {
+        try (FileReader reader = new FileReader(pathToServerProps)) {
             System.out.println("reading parameters from " + pathToServerProps);
-//            JSONParser jsonParser = new JSONParser();
-//            JSONObject jsonObject = (JSONObject) jsonParser.parse(reader);
-//            port = (long) jsonObject.get("port");
-            port = 64320;
-            ServerThread.startServer((int)port);
+            JSONParser jsonParser = new JSONParser();
+            JSONObject jsonObject = (JSONObject) jsonParser.parse(reader);
+            port = (long) jsonObject.get("port");
+            ServerThread.startServer((int) port);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
-//        catch (ParseException e) {
-//            e.printStackTrace();
-//        }
     }
-    
+
 }

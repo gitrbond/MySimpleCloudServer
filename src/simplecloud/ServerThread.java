@@ -1,16 +1,10 @@
 package simplecloud;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,7 +21,7 @@ public class ServerThread implements Runnable {
     private String username;
 
     private final String pathToStore = "storage";
-    
+
     public ServerThread(Socket connectionSocket) throws IOException {
         this.connectionSocket = connectionSocket;
         out = new DataOutputStream(connectionSocket.getOutputStream());
@@ -35,7 +29,7 @@ public class ServerThread implements Runnable {
         authorized = false;
         username = null;
     }
-    
+
     @Override
     public void run() {
         System.out.println("Client connected: <" + connectionSocket.getInetAddress() + ">");
@@ -48,14 +42,12 @@ public class ServerThread implements Runnable {
                         out.writeInt(Server.MSG_VALID);
                         username = requestedUsername;
                         authorized = true;
-                    }
-                    else {
+                    } else {
                         out.writeInt(Server.MSG_INVALID);
                     }
                 }
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             System.out.println("Authorization of client <" + connectionSocket.getInetAddress() + "> failed");
             //e.printStackTrace();
             return;
@@ -67,28 +59,19 @@ public class ServerThread implements Runnable {
             while (true) {
                 //System.out.println("Listening ...");
                 int command = in.readInt();
-                
+
                 if (command == Server.MSG_DOWNLOAD) {
                     String fileName = in.readUTF();
                     sendFileToClient(fileName);
-                }
-                else if (command == Server.MSG_UPLOAD) {
+                } else if (command == Server.MSG_UPLOAD) {
                     loadFileFromClient();
-                }
-                else if (command == Server.MSG_LIST) {
-                    listFiles();
-                }
-                else if (command == Server.MSG_SAY) {
+                } else if (command == Server.MSG_SAY) {
                     readClientsMessage();
-                }
-                else if (command == Server.MSG_SYNC) {
+                } else if (command == Server.MSG_SYNC) {
                     syncClient();
-                }
-                else if (command == Server.MSG_QUIT) {
+                } else if (command == Server.MSG_QUIT) {
                     throw new IOException();
-                }
-                
-                else {
+                } else {
                     System.out.println("Client \"" + username + "\" sent invalid command.");
                 }
             }
@@ -100,7 +83,8 @@ public class ServerThread implements Runnable {
             try {
                 in.close();
                 out.close();
-            } catch (IOException e) { }
+            } catch (IOException e) {
+            }
         }
     }
 
@@ -110,8 +94,7 @@ public class ServerThread implements Runnable {
         try {
             //size on client's side
             clientChatPosition = in.readInt();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to read from client, IOException: " + ioe);
             return;
         }
@@ -129,13 +112,11 @@ public class ServerThread implements Runnable {
                     out.write(data);
                 }
                 //System.out.println("sent: {" + messagesToSend + "}");
-            }
-            else {
+            } else {
                 out.writeInt(Server.MSG_INVALID);
             }
             out.flush();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to send command, IOException: " + ioe);
             return;
         }
@@ -146,16 +127,14 @@ public class ServerThread implements Runnable {
         int length;
         try {
             length = in.readInt();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to read from client, IOException: " + ioe);
             return;
         }
         try {
             out.writeInt(length);
             out.flush();
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to send command, IOException: " + ioe);
             return;
         }
@@ -167,12 +146,10 @@ public class ServerThread implements Runnable {
                 String message = new String(data, StandardCharsets.UTF_8);
                 chat.add("@" + username + ": " + message);
                 System.out.println("@" + username + " said \"" + message + "\"");
+            } else {
+                System.out.println("Message sizes do not match, transfer interrupted");
             }
-            else {
-                System.out.println("Message sized do not match, transfer interrupted");
-            }
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             System.out.println("Unable to read response from client, IOException: " + ioe);
         }
     }
@@ -184,15 +161,13 @@ public class ServerThread implements Runnable {
             System.out.println("Requested file not found.");
             out.writeInt(Server.MSG_INVALID);
             out.flush();
-        }
-        else {
+        } else {
             out.writeInt(Server.MSG_VALID);
             out.flush();
             FileInputStream fileReader = new FileInputStream(file);
             long length = file.length();
             //System.out.println("file len = " + length);
-//            out.writeLong(length);
-            out.writeInt((int)length);
+            out.writeInt((int) length);
             out.flush();
             int iterNum = (int) (length / Server.BUFFER_LEN);
             int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
@@ -233,8 +208,7 @@ public class ServerThread implements Runnable {
                 try {
                     bytesred = in.read(buffer);
                     //System.out.println("Upload iteration " + i + ", " + bytesred + " bytes red");
-                }
-                catch (IOException ioe) {
+                } catch (IOException ioe) {
                     //System.out.println("Upload iteration " + i + ", IOException, " + bytesred + " bytes red");
                     System.out.println("IOException: " + ioe);
                 }
@@ -248,23 +222,6 @@ public class ServerThread implements Runnable {
         }
     }
 
-    private void listFiles() throws IOException {
-        File folder = new File(pathToStore);
-        File[] listOfFiles = folder.listFiles();
-        int filesNumber = -1;
-        if (listOfFiles != null)
-            filesNumber = listOfFiles.length;
-        out.writeInt(filesNumber);
-
-        for (int i = 0; i < filesNumber; i++) {
-            if (listOfFiles[i].isFile()) {
-                out.writeBytes("file " + listOfFiles[i].getName()+"\n");
-            } else if (listOfFiles[i].isDirectory()) {
-                out.writeBytes("dir  " + listOfFiles[i].getName()+"\n");
-            }
-        }
-    }
-    
     public static void startServer(int port) {
         ServerSocket serverSocket;
         try {
@@ -275,13 +232,13 @@ public class ServerThread implements Runnable {
         } catch (IOException e) {
             if (e.getMessage().contains("Permission denied")) {
                 System.out.println("You should run the program as administrator "
-                                       + "(superuser) to start a server.");
+                        + "(superuser) to start a server.");
             } else {
                 System.out.println("A network error occured during the initialization.");
             }
             return;
         }
-        
+
         while (true) {
             try {
                 Socket connectionSocket = serverSocket.accept();
@@ -293,5 +250,5 @@ public class ServerThread implements Runnable {
             }
         }
     }
-    
+
 }
