@@ -6,28 +6,42 @@ import org.json.simple.parser.ParseException;
 
 import java.io.*;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Scanner;
 
 
 public class Client {
+    public static final int OP_NOP = 0;
+    public static final int OP_CONNECT = 1;
+    public static final int OP_SENDTEXT = 2;
+    public static final int OP_SENDFILE = 3;
+    public static final int OP_QUIT = 4;
 
     private final Socket socket;
-    private final DataInputStream in;
-    private final DataOutputStream out;
+    private static DataInputStream in = null;
+    private static DataOutputStream out = null;
 
-    private boolean authorized = false;
+    private static volatile boolean authorized = false;
     private String username;
 
-    public static final String pathToClientProps = "client-properties.txt";
+    private static final List<String> chat = Collections.synchronizedList(new ArrayList<>());
+    private static volatile int operation = OP_NOP;
+    private static volatile String param = null;
+    private static volatile boolean quit = false;
 
-    private Client(String ip, int port, boolean encrypt, boolean decrypt) throws IOException {
+    private static final String pathToClientProps = "client-properties.txt";
+
+    private Client(String ip, int port) throws IOException {
         System.out.println("Connecting to " + ip + ":" + port + " ...");
         socket = new Socket(ip, port);
         in = new DataInputStream(socket.getInputStream());
         out = new DataOutputStream(socket.getOutputStream());
     }
 
-    public static void main (String[] args) {//startClient(String ip, int port, boolean encryption) {
+    public static void main (String[] args) {
         long port = 0;
         String ip = "";
         try (FileReader reader = new FileReader(pathToClientProps))
@@ -46,17 +60,151 @@ public class Client {
         }
         Client client = null;
         try {
-            client = new Client(ip, (int)port, false, false);
+            client = new Client(ip, (int)port);
             System.out.println("Connected.");
         } catch (IOException e) {
             System.out.println("Connection failed.");
             return;
         }
 
-        client.takeCommands();
+        Thread inputThread = new Thread(client::executeCommands);
+//        Thread inputThread = new Thread(client::takeCommands);
+        inputThread.start();
+
+
+        System.out.println("Commands: \"connect <username>\", \"send file "
+                + "<filename>\", \"send text <text>\", \"quit\"");
+        Scanner scan = new Scanner(System.in);
+        while (!quit) {
+//            try {
+//                //Thread.sleep(3000);
+//                //System.out.println("interrupt");
+////                int command = in.readInt();
+//                //in.
+////                if (command == Server.MSG_SYNC) {
+////                    System.out.println("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+////                }
+//
+//            }
+            String command = scan.nextLine();
+            if (authorized){
+                if (command.startsWith("send text ")) {
+                    while (true) {
+                        if (operation == OP_NOP) {
+                            operation = OP_SENDTEXT;
+                            param = command.substring("send text ".length()).stripLeading();
+                            break;
+                        }
+                    }
+                }
+                else if (command.startsWith("send file ")) {
+                    while (true) {
+                        if (operation == OP_NOP) {
+                            operation = OP_SENDFILE;
+                            param = command.substring("send file ".length()).stripLeading();
+                            break;
+                        }
+                    }
+                }
+                else if (command.startsWith("quit")) {
+                    quit = true;
+                }
+                else {
+                    System.out.println("Please enter a valid command.");
+                }
+            }
+            else if (command.startsWith("connect ")) {
+                while (true) {
+                    if (operation == OP_NOP) {
+                        operation = OP_CONNECT;
+                        param = command.substring("connect ".length()).stripLeading();
+                        break;
+                    }
+                }
+            }
+            else if (command.startsWith("quit")) {
+                quit = true;
+            }
+            else {
+                System.out.println("please authorize to send commands");
+            }
+        }
+    }
+
+    private void executeCommands() {
+        while (!quit) {
+            //System.out.println("op = " + operation);
+            if (operation == OP_CONNECT) {
+                authorize(param);
+                operation = OP_NOP;
+            }
+            else if (operation == OP_SENDTEXT) {
+                say(param);
+                operation = OP_NOP;
+            }
+            else if (operation == OP_SENDFILE) {
+                try {
+                    upload(param);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                operation = OP_NOP;
+            }
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    private void takeCommands() {
+        Scanner scan = new Scanner(System.in);
+        try {
+            System.out.println("Commands: \"DOWNLOAD <filename>\", \"UPLOAD "
+                                   + "<filename>\", \"LIST\", \"QUIT\"");
+            String command = scan.next();
+            while (!command.equalsIgnoreCase("quit")) {
+                if (authorized){
+                    if (command.equalsIgnoreCase("DOWNLOAD")) {
+                        String fileName = scan.next();
+                        download(fileName);
+                    }
+                    else if (command.equalsIgnoreCase("UPLOAD")) {
+                        String fileName = scan.next();
+                        upload(fileName);
+                    }
+                    else if (command.equalsIgnoreCase("LIST")) {
+                        listFiles();
+                    }
+                    else if (command.equalsIgnoreCase("say")) {
+                        String message = scan.nextLine();
+                        say(message);
+                    }
+                    else {
+                        System.out.println("Please enter a valid command.");
+                    }
+                    //syncChat();
+                }
+                if (command.equalsIgnoreCase("connect")) {//authorize
+                    String requestedUsername = scan.next();
+                    authorize(requestedUsername);
+                } else if (!authorized) {
+                    System.out.println("please authorize to send commands");
+                }
+            }
+            out.writeInt(Server.MSG_QUIT);
+            out.flush();
+        } catch (IOException e) {
+            System.out.println("Disconnected from the server.");
+        } finally {
+            scan.close();
+            quit = true;
+        }
     }
 
     private void authorize(String requestedUsername) {
+        System.out.println("authorizing...");
         try {
             out.writeInt(Server.MSG_AUTHORIZE);
             out.flush();
@@ -75,41 +223,65 @@ public class Client {
             System.out.println("IOException: " + ioe);
         }
     }
-    
-    private void takeCommands() {
-        Scanner scan = new Scanner(System.in);
+
+    private void syncChat() {
+        int clientChatPosition = chat.size();
         try {
-            System.out.println("Commands: \"DOWNLOAD <filename>\", \"UPLOAD "
-                                   + "<filename>\", \"LIST\", \"QUIT\"");
-            String command = scan.next();
-            while (!command.equalsIgnoreCase("quit")) {
-                if (authorized){
-                    if (command.equalsIgnoreCase("DOWNLOAD")) {
-                        String fileName = scan.next();
-                        download(fileName);
-                    } else if (command.equalsIgnoreCase("UPLOAD")) {
-                        String fileName = scan.next();
-                        upload(fileName);
-                    } else if (command.equalsIgnoreCase("LIST")) {
-                        listFiles();
-                    } else {
-                        System.out.println("Please enter a valid command.");
-                    }
-                }
-                if (command.equalsIgnoreCase("connect")) {//authorize
-                    String requestedUsername = scan.next();
-                    authorize(requestedUsername);
-                } else if (!authorized) {
-                    System.out.println("please authorize to send commands");
-                }
-                command = scan.next();
-            }
-            out.writeInt(Server.MSG_QUIT);
+            out.writeInt(Server.MSG_SYNC);
+            out.writeInt(clientChatPosition);
             out.flush();
-        } catch (IOException e) {
-            System.out.println("Disconnected from the server.");
-        } finally {
-            scan.close();
+        }
+        catch (IOException ioe) {
+            System.out.println("Unable to send command, IOException: " + ioe);
+            return;
+        }
+        try {
+            int response = in.readInt();
+            if (response == Server.MSG_VALID) {
+                int receiveNumber = in.readInt();
+                System.out.println("Receiving " + receiveNumber + " messages");
+            }
+            else {
+                System.out.println("Nothing to sync");
+            }
+        }
+        catch (IOException ioe) {
+            System.out.println("Unable to read response from server, IOException: " + ioe);
+            return;
+        }
+    }
+
+    private void say(String message) {
+        byte[] data = message.getBytes(StandardCharsets.UTF_8);
+        try {
+            out.writeInt(Server.MSG_SAY);
+            out.writeInt(data.length);
+            out.flush();
+        }
+        catch (IOException ioe) {
+            System.out.println("Unable to send command, IOException: " + ioe);
+            return;
+        }
+        int response;
+        try {
+            response = in.readInt();
+        }
+        catch (IOException ioe) {
+            System.out.println("Unable to read response from server, IOException: " + ioe);
+            return;
+        }
+        try {
+            if (response == data.length) {
+                out.writeInt(Server.MSG_VALID);
+                out.write(data);
+            }
+            else {
+                out.writeInt(Server.MSG_INVALID);
+            }
+            out.flush();
+        }
+        catch (IOException ioe) {
+            System.out.println("Unable to send command, IOException: " + ioe);
         }
     }
 
@@ -118,7 +290,8 @@ public class Client {
             out.writeInt(Server.MSG_LIST);
         }
         catch (IOException ioe) {
-            System.out.println("IOException: " + ioe);
+            System.out.println("Unable to send command, IOException: " + ioe);
+            return;
         }
         int fileNumber = -1;
         try {
@@ -161,10 +334,11 @@ public class Client {
         } else if (response == Server.MSG_VALID) {
             File file = new File(fileName);
             FileOutputStream fileWriter = new FileOutputStream(file);
-            long length = in.readLong();
-            System.out.println("Download started ...");
-            int iterNum = (int) (length / Server.BUFFER_LEN);
-            int remaining = (int) (length - iterNum * Server.BUFFER_LEN);
+//            long length = in.readLong();
+            int length = in.readInt();
+            System.out.println("Download of " + length + " bytes started ...");
+            int iterNum = (length / Server.BUFFER_LEN);
+            int remaining = (length - iterNum * Server.BUFFER_LEN);
             int bytesred = -1488;
             int bytesDownloaded = 0;
             for (int i = 0; bytesDownloaded < length && i < 9000; i++) {

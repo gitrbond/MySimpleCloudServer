@@ -17,6 +17,8 @@ public class Server {
     public static final int MSG_QUIT = 5;
     public static final int MSG_LIST = 6;
     public static final int MSG_AUTHORIZE = 7;
+    public static final int MSG_SYNC = 8;
+    public static final int MSG_SAY = 9;
 
     public static final int BUFFER_LEN = 10000;
 
