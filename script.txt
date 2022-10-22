@@ -1,1 +1,0 @@
-C:\Users\cubic\.jdks\adopt-openjdk-15.0.2\bin\java.exe -jar MySimpleCloudServer.jar
