@@ -18,7 +18,7 @@ public class Client {
     public static final int OP_SENDTEXT = 2;
     public static final int OP_SENDFILE = 3;
     public static final int OP_GETFILE = 4;
-    public static final int OP_SYNC = 8;
+    public static final int OP_SYNC = 5;
 
     private final Socket socket;
     private static DataInputStream in = null;
