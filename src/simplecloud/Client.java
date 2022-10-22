@@ -14,7 +14,7 @@ import java.util.Scanner;
 
 public class Client {
     public static final int OP_NOP = 0;
-    public static final int OP_CONNECT = 1;
+    public static final int OP_CONNECT = 3;
     public static final int OP_SENDTEXT = 2;
     public static final int OP_SENDFILE = 3;
     public static final int OP_GETFILE = 4;
